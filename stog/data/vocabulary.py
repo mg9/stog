@@ -19,10 +19,13 @@ from stog.data import instance as adi  # pylint: disable=unused-import
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 DEFAULT_NON_PADDED_NAMESPACES = ("*tags", "*labels")
-DEFAULT_PADDING_TOKEN = "@@PADDING@@"
-DEFAULT_OOV_TOKEN = "@@UNKNOWN@@"
+DEFAULT_PADDING_TOKEN = "<pad>" #"@@PADDING@@"
+DEFAULT_OOV_TOKEN =  "<unk>" #"@@UNKNOWN@@"
+DEFAULT_EOS_TOKEN =  "</s>" #"@@UNKNOWN@@"
+
 NAMESPACE_PADDING_FILE = 'non_padded_namespaces.txt'
 
+from transformers import T5Tokenizer
 
 class _NamespaceDependentDefaultDict(defaultdict):
     """
@@ -81,16 +84,16 @@ class _NamespaceDependentDefaultDict(defaultdict):
         self._non_padded_namespaces.update(non_padded_namespaces)
 
 class _TokenToIndexDefaultDict(_NamespaceDependentDefaultDict):
-    def __init__(self, non_padded_namespaces: Set[str], padding_token: str, oov_token: str) -> None:
+    def __init__(self, non_padded_namespaces: Set[str], padding_token: str, oov_token: str, eos_token: str) -> None:
         super(_TokenToIndexDefaultDict, self).__init__(non_padded_namespaces,
-                                                       lambda: {padding_token: 0, oov_token: 1},
+                                                       lambda: {padding_token: 0, oov_token: 1, eos_token: 2},
                                                        lambda: {})
 
 
 class _IndexToTokenDefaultDict(_NamespaceDependentDefaultDict):
-    def __init__(self, non_padded_namespaces: Set[str], padding_token: str, oov_token: str) -> None:
+    def __init__(self, non_padded_namespaces: Set[str], padding_token: str, oov_token: str, eos_token: str) -> None:
         super(_IndexToTokenDefaultDict, self).__init__(non_padded_namespaces,
-                                                       lambda: {0: padding_token, 1: oov_token},
+                                                       lambda: {0: padding_token, 1: oov_token, 2:eos_token},
                                                        lambda: {})
 
 
@@ -216,14 +219,20 @@ class Vocabulary:
                  min_pretrained_embeddings: Dict[str, int] = None) -> None:
         self._padding_token = DEFAULT_PADDING_TOKEN
         self._oov_token = DEFAULT_OOV_TOKEN
+        self._eos_token = DEFAULT_EOS_TOKEN
+        self._t5_tokenizer = T5Tokenizer.from_pretrained('t5-small', additional_special_tokens=["@start@", "@end@"])
+
         self._non_padded_namespaces = set(non_padded_namespaces)
         self._token_to_index = _TokenToIndexDefaultDict(self._non_padded_namespaces,
                                                         self._padding_token,
-                                                        self._oov_token)
+                                                        self._oov_token,
+                                                        self._eos_token)
         self._index_to_token = _IndexToTokenDefaultDict(self._non_padded_namespaces,
                                                         self._padding_token,
-                                                        self._oov_token)
+                                                        self._oov_token,
+                                                        self._eos_token)
         self._retained_counter: Optional[Dict[str, Dict[str, int]]] = None
+
         # Made an empty vocabulary, now extend it.
         self._extend(counter,
                      min_count,
@@ -466,6 +475,7 @@ class Vocabulary:
         and indextotoken mappings of calling vocabulary will be retained.
         It is an inplace operation so None will be returned.
         """
+
         if not isinstance(max_vocab_size, dict):
             int_max_vocab_size = max_vocab_size
             max_vocab_size = defaultdict(lambda: int_max_vocab_size)  # type: ignore
@@ -570,6 +580,7 @@ class Vocabulary:
         Adds ``token`` to the index, if it is not already present.  Either way, we return the index of
         the token.
         """
+
         if not isinstance(token, str):
             raise ValueError("Vocabulary tokens must be strings, or saving and loading will break."
                              "  Got %s (with type %s)" % (repr(token), type(token)))
@@ -577,6 +588,8 @@ class Vocabulary:
             index = len(self._token_to_index[namespace])
             self._token_to_index[namespace][token] = index
             self._index_to_token[namespace][index] = token
+            #if namespace == "decoder_token_ids":
+            #    self._t5_tokenizer.add_tokens(token)
             return index
         else:
             return self._token_to_index[namespace][token]

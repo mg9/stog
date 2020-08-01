@@ -20,6 +20,9 @@ from stog.metrics import dump_metrics
 logger = logging.init_logger()
 
 
+# Huggingface
+from transformers import T5Tokenizer
+
 def create_serialization_dir(params: Params) -> None:
     """
     This function creates the serialization directory if it doesn't exist.  If it already exists

@@ -16,7 +16,7 @@ from stog.data.token_indexers import TokenIndexer, SingleIdTokenIndexer
 from stog.data.tokenizers import Token
 from stog.data.tokenizers.bert_tokenizer import AMRBertTokenizer
 from stog.utils.checks import ConfigurationError
-from stog.utils.string import START_SYMBOL, END_SYMBOL
+from stog.utils.string import START_SYMBOL, END_SYMBOL, EOS_SYMBOL
 
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
@@ -70,7 +70,9 @@ class AbstractMeaningRepresentationDatasetReader(DatasetReader):
         # if `file_path` is a URL, redirect to the cache
         file_path = cached_path(file_path)
         logger.info("Reading instances from lines in file at: %s", file_path)
-        for amr in AMRIO.read(file_path):
+        for i,amr in enumerate(AMRIO.read(file_path)):
+            #if i>10:
+            #    break
             yield self.text_to_instance(amr)
         self.report_coverage()
 
@@ -83,7 +85,7 @@ class AbstractMeaningRepresentationDatasetReader(DatasetReader):
         max_tgt_length = None if self._evaluation else 60
 
         list_data = amr.graph.get_list_data(
-            amr, START_SYMBOL, END_SYMBOL, self._word_splitter, max_tgt_length)
+            amr, START_SYMBOL, END_SYMBOL, EOS_SYMBOL, self._word_splitter, max_tgt_length)
 
         # These four fields are used for seq2seq model and target side self copy
         fields["src_tokens"] = TextField(

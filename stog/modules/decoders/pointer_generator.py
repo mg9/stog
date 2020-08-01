@@ -70,8 +70,11 @@ class PointerGenerator(torch.nn.Module):
         # [batch_size, num_target_nodes, num_target_nodes]
         # TODO: make sure for target_node_i, its attention to target_node_j >= target_node_i
         # should be zero.
+
+     
         scaled_target_attentions = torch.mul(target_attentions, p_copy_target.expand_as(target_attentions))
         # [batch_size, num_target_nodes, dymanic_vocab_size]
+
         scaled_copy_target_probs = torch.bmm(scaled_target_attentions, target_attention_maps.float())
 
         if invalid_indexes:

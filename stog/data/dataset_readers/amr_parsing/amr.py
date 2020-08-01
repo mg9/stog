@@ -493,7 +493,7 @@ class AMRGraph(penman.Graph):
 
 
 
-    def get_list_data(self, amr, bos=None, eos=None, bert_tokenizer=None, max_tgt_length=None):
+    def get_list_data(self, amr, bos=None, eos=None, t5eos=None, bert_tokenizer=None, max_tgt_length=None):
         node_list = self.get_list_node()
 
         tgt_tokens = []
@@ -544,7 +544,7 @@ class AMRGraph(penman.Graph):
             tgt_tokens = [bos] + tgt_tokens
             copy_offset += 1
         if eos:
-            tgt_tokens = tgt_tokens + [eos]
+            tgt_tokens = tgt_tokens + [eos] + [t5eos]
 
         head_indices[node_to_idx[self.variable_to_node[self.top]][0]] = 0
 
@@ -596,9 +596,13 @@ class AMRGraph(penman.Graph):
 
         # Source Copy
         src_tokens = self.get_src_tokens()
+        src_tokens.append("</s>")
+
         src_token_ids = None
         src_token_subword_index = None
         src_pos_tags = amr.pos_tags
+        src_pos_tags.append("<unk>")
+
         src_copy_vocab = SourceCopyVocabulary(src_tokens)
         src_copy_indices = src_copy_vocab.index_sequence(tgt_tokens)
         src_copy_map = src_copy_vocab.get_copy_map(src_tokens)
@@ -610,6 +614,10 @@ class AMRGraph(penman.Graph):
         src_must_copy_tags = [1 if is_abstract_token(t) else 0 for t in src_tokens]
         src_copy_invalid_ids = set(src_copy_vocab.index_sequence(
             [t for t in src_tokens if is_english_punct(t)]))
+
+
+        #print("src_pos_tags: ", src_pos_tags)
+        #print("src_tokens: ", src_tokens)
 
         return {
             "tgt_tokens" : tgt_tokens,

@@ -134,6 +134,8 @@ class TextField(SequenceField[Dict[str, torch.Tensor]]):
 
             indices_to_pad = {indexed_tokens_key: self._indexed_tokens[indexed_tokens_key]
                               for indexed_tokens_key in self._indexer_name_to_indexed_token[indexer_name]}
+
+            #print("indices_to_pad: ", indices_to_pad)
             padded_array = indexer.pad_token_sequence(indices_to_pad,
                                                       desired_num_tokens, padding_lengths)
             # We use the key of the indexer to recognise what the tensor corresponds to within the

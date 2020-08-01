@@ -10,7 +10,7 @@ JsonDict = Dict[str, Any]
 # those cases).
 START_SYMBOL = '@start@'
 END_SYMBOL = '@end@'
-
+EOS_SYMBOL = '</s>'
 
 def is_abstract_token(token):
     return re.search(r'^([A-Z]+_)+\d+$', token) or re.search(r'^\d0*$', token)
