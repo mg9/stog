@@ -544,7 +544,7 @@ class AMRGraph(penman.Graph):
             tgt_tokens = [bos] + tgt_tokens
             copy_offset += 1
         if eos:
-            tgt_tokens = tgt_tokens + [eos] + [t5eos]
+            tgt_tokens = tgt_tokens + [eos] #+ [t5eos]
 
         head_indices[node_to_idx[self.variable_to_node[self.top]][0]] = 0
 

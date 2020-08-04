@@ -136,10 +136,10 @@ class PointerGenerator(torch.nn.Module):
         non_pad_mask = generate_targets.ne(self.vocab_pad_idx)
 
         source_copy_mask = source_copy_targets.ne(1) & source_copy_targets.ne(0)  # 1 is the index for unknown words
-        non_source_copy_mask = 1 - source_copy_mask
+        non_source_copy_mask = torch.logical_not(source_copy_mask)
 
         target_copy_mask = target_copy_targets.ne(0)  # 0 is the index for coref NA
-        non_target_copy_mask = 1 - target_copy_mask
+        non_target_copy_mask = torch.logical_not(target_copy_mask)
 
         # [batch_size, num_target_nodes, 1]
         target_copy_targets_with_offset = target_copy_targets.unsqueeze(2) + self.vocab_size + source_dynamic_vocab_size

@@ -60,7 +60,7 @@ class STOG(Model):
 
         if for_training:
             self.t5.train()
-            t5_outputs = self.t5_encode_decode(encoder_inputs['token'], decoder_inputs['token'], encoder_inputs['mask'])
+            t5_outputs = self.t5_encode_decode(encoder_inputs['token'], decoder_inputs['token'], encoder_inputs['mask'], parser_inputs['mask'])
 
             """
             decoder_outputs = self.decode_for_training(
@@ -119,7 +119,7 @@ class STOG(Model):
 
         else:
 
-            t5_outputs = self.t5_encode_decode(encoder_inputs['token'], decoder_inputs['token'], encoder_inputs['mask'])
+            t5_outputs = self.t5_encode_decode(encoder_inputs['token'], decoder_inputs['token'], encoder_inputs['mask'], parser_inputs['mask'])
 
             invalid_indexes = dict(
                 source_copy=batch.get('source_copy_invalid_ids', None),
@@ -138,7 +138,7 @@ class STOG(Model):
             )
 
 
-    def t5_encode_decode(self, src_tokens, tgt_tokens, src_mask):
+    def t5_encode_decode(self, src_tokens, tgt_tokens, src_mask, parser_mask):
 
         B,Tx = src_tokens.shape
         B,Ty = tgt_tokens.shape
@@ -158,18 +158,12 @@ class STOG(Model):
             sequence = []
             for t in range(Ty):
                 sequence.append(self.vocab.get_token_from_index(tgt_tokens[b,t].item(), "decoder_token_ids")) 
-
-                #num_added_toks = self.t5_tokenizer.add_tokens(sequence)
-                #print('We have added', num_added_toks, 'tokens')
             tgt_sequences.append(sequence)
         
-        #self.t5.resize_token_embeddings(len(self.t5_tokenizer))  # Notice: resize_token_embeddings expect to receive the full size of the new vocabulary, i.e. the length of the tokenizer.
-
-
 
         # add task prefix as required by model
         src_train = [
-            "summarize: " + " ".join(sequence)
+            "amrgraphize: " + " ".join(sequence)
             for sequence in list(src_sequences)
         ]
 
@@ -178,18 +172,17 @@ class STOG(Model):
             for sequence in list(tgt_sequences)
         ]
 
-
         src_train_dict = self.t5_tokenizer.batch_encode_plus(
             src_train,
             max_length=Tx+1,
-            pad_to_max_length=True,
+            #pad_to_max_length=True,
             truncation=True
         )
 
         tgt_train_dict = self.t5_tokenizer.batch_encode_plus(
             tgt_train,
             max_length=Ty,
-            pad_to_max_length=True,
+            #pad_to_max_length=True,
             truncation=True
         )
 
@@ -198,34 +191,14 @@ class STOG(Model):
         input_ids = torch.LongTensor(src_train_dict["input_ids"]).cuda()
         output_ids = torch.LongTensor(tgt_train_dict["input_ids"]).cuda()      
 
-
-        """
-        print("src_tokens[0]: ", src_tokens[0])
-        print("tgt_tokens[0]: ", tgt_tokens[0])
-        print("src_tokens[1]: ", src_tokens[1])
-        print("tgt_tokens[1]: ", tgt_tokens[1])
-        print("src_sequences[0]: ", src_sequences[0])
-        print("tgt_sequences[0]: ", tgt_sequences[0])
-        print("src_sequences[1]: ", src_sequences[1])
-        print("tgt_sequences[1]: ", tgt_sequences[1])
-        print("src_train[0]: ", src_train[0])
-        print("tgt_train[0]: ", tgt_train[0])
-        print("src_train[1]: ", src_train[1])
-        print("tgt_train[1]: ", tgt_train[1])
-        print("input_ids: ", input_ids.shape)
-        print("input_ids[0]: ", input_ids[0])
-        print("output_ids[0]: ", output_ids[0])
-        print("input_ids[1]: ", input_ids[1])
-        print("output_ids[1]: ", output_ids[1])
-        """
       
         output_ids[output_ids == self.t5_tokenizer.pad_token_id] = -100
 
-        prefix_mask = torch.LongTensor(torch.zeros([B, 1]).long()).cuda()
+        prefix_mask = torch.LongTensor(torch.ones([B, 1]).long()).cuda()
         src_mask = torch.cat((prefix_mask, src_mask),1)
 
-        #attention_mask=src_mask
-        outputs = self.t5(input_ids=input_ids, labels=output_ids,  use_cache=False, output_attentions=True, output_hidden_states=True)
+        
+        outputs = self.t5(input_ids=input_ids, labels=output_ids,  attention_mask=src_mask, decoder_attention_mask=parser_mask, use_cache=False, output_attentions=True, output_hidden_states=True)
 
         decoder_hiddens = outputs[2][6]             # B,Ty,H
         decoder_self_attentions = outputs[3][5]     # B,8,Ty,Ty
@@ -268,8 +241,8 @@ class STOG(Model):
 
     def mimick_test(self):
         word_splitter = None
-        if self.use_bert:
-            word_splitter = self.test_config.get('word_splitter', None)
+        #if self.use_bert:
+        #    word_splitter = self.test_config.get('word_splitter', None)
         dataset_reader = load_dataset_reader('AMR', word_splitter=word_splitter)
         dataset_reader.set_evaluation()
         predictor = Predictor.by_name('STOG')(self, dataset_reader)
@@ -347,7 +320,8 @@ class STOG(Model):
         decoder_coref_inputs = torch.ones_like(raw_coref_inputs) * torch.arange(
             0, raw_coref_inputs.size(1)).type_as(raw_coref_inputs).unsqueeze(0)
         
-        decoder_coref_inputs.masked_fill_(coref_happen_mask, 0)
+
+        decoder_coref_inputs.masked_fill_(coref_happen_mask > 0, 0)
         # [batch, num_tokens]
         decoder_coref_inputs = decoder_coref_inputs + raw_coref_inputs
 
@@ -584,14 +558,14 @@ class STOG(Model):
 
         # add task prefix as required by model
         src_train = [
-            "summarize: " + " ".join(sequence)
+            "amrgraphize: " + " ".join(sequence)
             for sequence in list(src_sequences)
         ]
 
         src_train_dict = self.t5_tokenizer.batch_encode_plus(
             src_train,
             max_length=Tx+1,
-            pad_to_max_length=True,
+            #pad_to_max_length=True,
             truncation=True
         )
 
@@ -599,13 +573,23 @@ class STOG(Model):
         input_ids = torch.LongTensor(src_train_dict["input_ids"]).cuda()
         decoder_input_ids = torch.tensor(self.t5_tokenizer.encode("<pad>")).repeat(B,1).cuda()
 
+
+        t5_mask = torch.cat((torch.ones(B,1).cuda(), mask.float()), -1)
+        t5_outputs = self.t5.generate(input_ids, attention_mask=t5_mask, repetition_penalty=1.2, do_sample=False, num_beams=5, max_length=self.max_decode_length)
+        
+        # for i,seq in enumerate(t5_outputs):
+        #     print("src: ", src_train[i])
+        #     print("t5_mask: ", t5_mask[i])
+        #     print("seq: ", self.t5_tokenizer.convert_ids_to_tokens(seq))
+        #     print("\n")
+        # print("len(outputs): ", len(t5_outputs))
+
         
         for step_i in range(self.max_decode_length):
             print("\nDecoding one step...", step_i)
             # 2. Decode one step.
 
-
-            outputs = self.t5(input_ids=input_ids, decoder_input_ids=decoder_input_ids,  use_cache=False, output_attentions=True, output_hidden_states=True)
+            outputs = self.t5(input_ids=input_ids, attention_mask=t5_mask, decoder_input_ids=t5_outputs[:,step_i].unsqueeze(1),  use_cache=False, output_attentions=True, output_hidden_states=True)
             _decoder_outputs = outputs[1][6]            # B,T,H -> (1,1,H)
             encoder_hiddens  = outputs[4][5]             # B,Tx+1,H
             decoder_self_attentions = outputs[2][5]     # B,8,Ty,Ty
@@ -632,9 +616,6 @@ class STOG(Model):
                     print("compressed: ", compressed.shape)
                     print("_coref_attentions: ", _coref_attentions.shape)
 
-            
-
-
             #_decoder_outputs # B,T,H
             part1 = _decoder_outputs[:,:step_i] #B,
             part2 = torch.sum(_decoder_outputs[:,step_i+1:,:], dim=1).unsqueeze(1) #B,
@@ -642,7 +623,6 @@ class STOG(Model):
             _decoder_outputs = part2
             """
             attn_h, _copy_attentions, coverage = self.t5_attention_layer(_decoder_outputs, encoder_hiddens[:,1:,:], mask)
-
             cat_attentions= []
             # 3. Run pointer/generator.
             if step_i == 0:
@@ -680,8 +660,6 @@ class STOG(Model):
             for b in range(B):
                 token = self.vocab.get_token_from_index(coref_vocab_maps[b,step_i+1].item(), "decoder_token_ids")
                 preds.append(token)
-            
-
 
             all_decodes = {}
             max_decode = 0
@@ -706,13 +684,9 @@ class STOG(Model):
             for k,v in all_decodes.items():
                 add_to_decoder_token_ids[k] = v
 
-
             print("add_to_decoder_token_ids: ", add_to_decoder_token_ids)
-
             decoder_input_ids = add_to_decoder_token_ids
             """
-
-            print("decoder_input_ids: ", decoder_input_ids)
 
             # 5. Update variables.
             decoder_outputs += [_decoder_outputs]
@@ -723,7 +697,6 @@ class STOG(Model):
             coref_indexes += [corefs]
             # Add the mask for the next input.
             decoder_mask += [_mask]
-        
 
 
 
@@ -735,9 +708,16 @@ class STOG(Model):
         # TODO: Answer "What if the last one is not EOS?"
         predictions = torch.cat(predictions[:-1], dim=1)
 
-        coref_indexes = torch.cat(coref_indexes[:-1], dim=1)
-        decoder_mask = 1 - torch.cat(decoder_mask[:-1], dim=1)
+        print("predictions.shape: ", predictions.shape)
+        for b in range(B):
+            sequence = []
+            for t in range(self.max_decode_length-1):
+                sequence.append(self.vocab.get_token_from_index(coref_vocab_maps[b,t].item(), "decoder_token_ids")) 
+            print("pred_g: ", sequence)
 
+        coref_indexes = torch.cat(coref_indexes[:-1], dim=1)
+        decoder_mask = torch.logical_not(torch.cat(decoder_mask[:-1], dim=1))
+       
         return dict(
             # [batch_size, max_decode_length]
             predictions=predictions,
@@ -782,7 +762,8 @@ class STOG(Model):
         coref_index = (predictions - vocab_size - copy_vocab_size)
         # Fill the place where copy didn't happen with the current step,
         # which means that the node doesn't refer to any precedent, it refers to itself.
-        coref_index.masked_fill_(1 - coref_mask, step + 1)
+        #coref_index.masked_fill_(1 - coref_mask, step + 1)
+        coref_index.masked_fill_(torch.logical_not(coref_mask > 0), step + 1)
 
         coref_attention_maps[batch_index, step_index, coref_index] = 1
 
@@ -830,7 +811,8 @@ class STOG(Model):
         coref_vocab_maps[batch_index, step_index + 1] = next_input
 
         # 4. Get the coref-resolved predictions.
-        coref_resolved_preds = coref_predictions * coref_mask.long() + predictions * (1 - coref_mask).long()
+        #coref_resolved_preds = coref_predictions * coref_mask.long() + predictions * (1 - coref_mask).long()
+        coref_resolved_preds = coref_predictions * coref_mask.long() + predictions * (torch.logical_not(coref_mask)).long()
 
         # 5. Get the mask for the current generation.
         has_eos = torch.zeros_like(gen_mask)

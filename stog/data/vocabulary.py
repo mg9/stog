@@ -220,7 +220,7 @@ class Vocabulary:
         self._padding_token = DEFAULT_PADDING_TOKEN
         self._oov_token = DEFAULT_OOV_TOKEN
         self._eos_token = DEFAULT_EOS_TOKEN
-        self._t5_tokenizer = T5Tokenizer.from_pretrained('t5-small', additional_special_tokens=["@start@", "@end@"])
+        self._t5_tokenizer = T5Tokenizer.from_pretrained('t5-small', additional_special_tokens=["@start@", "@end@", "amrgraphize:"])
 
         self._non_padded_namespaces = set(non_padded_namespaces)
         self._token_to_index = _TokenToIndexDefaultDict(self._non_padded_namespaces,

@@ -250,8 +250,8 @@ def masked_max(vector: torch.Tensor,
     -------
     A ``torch.Tensor`` of including the maximum values.
     """
-    one_minus_mask = (1.0 - mask).byte()
-    replaced_vector = vector.masked_fill(one_minus_mask, min_val)
+    #one_minus_mask = (1.0 - mask).byte()
+    replaced_vector = vector.masked_fill(torch.logical_not(mask), min_val)
     max_value, _ = replaced_vector.max(dim=dim, keepdim=keepdim)
     return max_value
 
@@ -279,8 +279,8 @@ def masked_mean(vector: torch.Tensor,
     -------
     A ``torch.Tensor`` of including the mean values.
     """
-    one_minus_mask = (1.0 - mask).byte()
-    replaced_vector = vector.masked_fill(one_minus_mask, 0.0)
+    #one_minus_mask = (1.0 - mask).byte()
+    replaced_vector = vector.masked_fill(torch.logical_not(mask), 0.0)
 
     value_sum = torch.sum(replaced_vector, dim=dim, keepdim=keepdim)
     value_count = torch.sum(mask.float(), dim=dim, keepdim=keepdim)
@@ -560,7 +560,7 @@ def replace_masked_values(tensor: torch.Tensor, mask: torch.Tensor, replace_with
     """
     if tensor.dim() != mask.dim():
         raise ConfigurationError("tensor.dim() (%d) != mask.dim() (%d)" % (tensor.dim(), mask.dim()))
-    return tensor.masked_fill((1 - mask).byte(), replace_with)
+    return tensor.masked_fill(torch.logical_not(mask), replace_with)
 
 
 def tensors_equal(tensor1: torch.Tensor, tensor2: torch.Tensor, tolerance: float = 1e-12) -> bool:
