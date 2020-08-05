@@ -21,11 +21,9 @@ logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 DEFAULT_NON_PADDED_NAMESPACES = ("*tags", "*labels")
 DEFAULT_PADDING_TOKEN = "<pad>" #"@@PADDING@@"
 DEFAULT_OOV_TOKEN =  "<unk>" #"@@UNKNOWN@@"
-DEFAULT_EOS_TOKEN =  "</s>" #"@@UNKNOWN@@"
+DEFAULT_EOS_TOKEN =  "</s>"
 
 NAMESPACE_PADDING_FILE = 'non_padded_namespaces.txt'
-
-#from transformers import T5Tokenizer
 
 class _NamespaceDependentDefaultDict(defaultdict):
     """
@@ -592,6 +590,7 @@ class Vocabulary:
             self._token_to_index[namespace][token] = index
             self._index_to_token[namespace][index] = token
             if namespace == "encoder_token_ids" or namespace == "decoder_token_ids":
+                #self.t5_tokenizer.convert_tokens_to_ids(token)
                 self.t5_tokenizer.add_tokens(token)
             return index
         else:

@@ -19,9 +19,12 @@ from stog.metrics import dump_metrics
 
 logger = logging.init_logger()
 
-
 from transformers import T5Tokenizer
-t5_tokenizer = T5Tokenizer.from_pretrained('t5-small', additional_special_tokens=["@start@", "@end@", "amrgraphize:"])
+
+if os.path.isdir("t5-vocab"):
+    t5_tokenizer =  T5Tokenizer.from_pretrained("t5-vocab")
+else:
+    t5_tokenizer = T5Tokenizer.from_pretrained('t5-small', additional_special_tokens=["amrgraphize:"])
 
 def create_serialization_dir(params: Params) -> None:
     """

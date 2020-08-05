@@ -15,6 +15,7 @@ from stog.utils.tqdm import Tqdm
 from stog.utils.time import time_to_str
 from stog.modules.optimizer import Optimizer
 from stog.utils.exception_hook import ExceptionHook
+import shutil
 
 
 sys.excepthook = ExceptionHook()
@@ -318,9 +319,9 @@ class Trainer:
             dev_generator_tqdm.set_description(description, refresh=False)
 
         if self._n_gpus > 1:
-            return self._model.module.get_metrics(reset=True, mimick_test=epoch > 50)
+            return self._model.module.get_metrics(reset=True, mimick_test=epoch > 100)
         else:
-            return self._model.get_metrics(reset=True, mimick_test=epoch > 50)
+            return self._model.get_metrics(reset=True, mimick_test=epoch > 100)
 
     def train(self):
         """Trains the supplied model with the supplied parameters.
@@ -348,6 +349,7 @@ class Trainer:
         best_epoch_dev_metrics = {}
 
         for epoch in range(epoch_counter, self._num_epochs):
+
             epoch_start_time = time.time()
             training_metrics = self._train_epoch(epoch)
             # Validate on the dev set.
@@ -460,6 +462,11 @@ class Trainer:
             model_path = os.path.join(self._serialization_dir, "model_state_epoch_{}.th".format(epoch))
             model_state = self._model.state_dict()
             torch.save(model_state, model_path)
+
+            if os.path.isdir("t5-small-amrtrained"):
+                shutil.rmtree("t5-small-amrtrained")
+
+            self._model.t5.save_pretrained("t5-small-amrtrained")
 
             training_state = {'epoch': epoch,
                               'dev_metric_per_epoch': dev_metric_per_epoch,

@@ -6,6 +6,9 @@ from stog.utils.checks import ConfigurationError
 from stog.utils.string import JsonDict, sanitize
 from stog.data import DatasetReader, Instance
 from stog.data.dataset_builder import load_dataset_reader
+import os
+from transformers import T5Tokenizer
+
 
 # a mapping from model `type` to the default Predictor for that type
 DEFAULT_PREDICTORS = {
@@ -113,11 +116,17 @@ class Predictor(Registrable):
                                          f"Please specify a predictor explicitly.")
             predictor_name = DEFAULT_PREDICTORS[model_type]
 
+
+        # Load t5 tokenizer
+        if os.path.isdir("t5_vocab"):
+            t5_tokenizer =  T5Tokenizer.from_pretrained("t5_vocab")
+
+
         word_splitter = None
         if config['model'].get('use_bert', False):
             word_splitter=config['data'].get('word_splitter', None)
         dataset_reader = load_dataset_reader(
-            config["data"]["data_type"], word_splitter=word_splitter)
+            config["data"]["data_type"], word_splitter=word_splitter, t5_tokenizer=t5_tokenizer)
         if hasattr(dataset_reader, 'set_evaluation'):
             dataset_reader.set_evaluation()
 

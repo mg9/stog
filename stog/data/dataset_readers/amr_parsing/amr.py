@@ -25,8 +25,9 @@ WORDSENSE_RE = re.compile(r'-\d\d$')
 QUOTED_RE = re.compile(r'^".*"$')
 
 
+
+# Huggingface
 from transformers import T5Tokenizer
-t5_tokenizer = T5Tokenizer.from_pretrained('t5-small', additional_special_tokens=["@start@", "@end@", "amrgraphize:"])
 
 
 class AMR:
@@ -497,7 +498,7 @@ class AMRGraph(penman.Graph):
 
 
 
-    def get_list_data(self, amr, t5_tokenizer, bos=None, eos=None, t5eos=None, bert_tokenizer=None, max_tgt_length=None):
+    def get_list_data(self, amr, t5_tokenizer, eos=None, bert_tokenizer=None, max_tgt_length=None): #bos=None
         node_list = self.get_list_node()
 
         tgt_tokens = []
@@ -544,13 +545,11 @@ class AMRGraph(penman.Graph):
                 tgt_tokens, head_tags, head_indices, node_to_idx)
 
         copy_offset = 0
-        if bos:
-            tgt_tokens = [bos] + tgt_tokens
-            copy_offset += 1
+        #if bos:
+        #    tgt_tokens = [bos] + tgt_tokens
+        #    copy_offset += 1
         if eos:
-            tgt_tokens = tgt_tokens + [eos] + [eos] #+ [t5eos]
-
-        #print("tgt_tokens: ", tgt_tokens)
+            tgt_tokens = tgt_tokens + [eos] + [eos] #double eos to use correct tgtmaps
 
 
         head_indices[node_to_idx[self.variable_to_node[self.top]][0]] = 0
@@ -603,25 +602,8 @@ class AMRGraph(penman.Graph):
 
         # Source Copy
         src_tokens = self.get_src_tokens()
-        src_tokens = ["summarize:"] + src_tokens + ["</s>"]
-
-
-        # src_train = [
-        #     "amrgraphize: " + " ".join(sequence)
-        #     for sequence in list(src_sequences)
-        # ]
-
-        input_ids  =  t5_tokenizer.convert_tokens_to_ids(src_tokens)
-        src_tokens =  t5_tokenizer.convert_ids_to_tokens(input_ids)
-
-        output_ids =  t5_tokenizer.convert_tokens_to_ids(tgt_tokens)
-        tgt_tokens =  t5_tokenizer.convert_ids_to_tokens(output_ids)
-
-
-        # print("hey input_ids: ", input_ids)
-        # print("src_tokens: ", t5_tokenizer.convert_ids_to_tokens(input_ids))
-        # print("hey output_ids: ", output_ids)
-        # print("tgt_tokens: ", t5_tokenizer.convert_ids_to_tokens(output_ids))
+        src_tokens = ["amrgraphize:"] + src_tokens + ["</s>"]
+    
         # print("bos:", t5_tokenizer.bos_token)
         # print("eos:", t5_tokenizer.eos_token)
         # print("pad:", t5_tokenizer.pad_token)
@@ -644,10 +626,6 @@ class AMRGraph(penman.Graph):
         src_must_copy_tags = [1 if is_abstract_token(t) else 0 for t in src_tokens]
         src_copy_invalid_ids = set(src_copy_vocab.index_sequence(
             [t for t in src_tokens if is_english_punct(t)]))
-
-
-        #print("src_pos_tags: ", src_pos_tags)
-        #print("tgt_copy_map: ", tgt_copy_map.shape)
 
         return {
             "tgt_tokens" : tgt_tokens,

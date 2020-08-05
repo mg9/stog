@@ -153,8 +153,8 @@ data:
   data_type: AMR
   batch_first: True
   iterator:
-    train_batch_size: &train_batch_size 1
-    test_batch_size: 1
+    train_batch_size: &train_batch_size 32
+    test_batch_size: 32
     iter_type: BucketIterator
     sorting_keys:  # (field, padding type)
       - [tgt_tokens, num_tokens]
@@ -169,7 +169,7 @@ environment:
   seed: 1
   numpy_seed: 1
   torch_seed: 1
-  serialization_dir: &serialization_dir ckpt-amr-2.1
+  serialization_dir: &serialization_dir ckpt-amr-2.2
   file_friendly_logging: False
   gpu: True
   cuda_device: 0
@@ -182,7 +182,7 @@ trainer:
   max_grad_norm: 5.0
   batch_size: *train_batch_size
   shuffle: True
-  epochs: 5
+  epochs: 120
   dev_metric: +F1
   serialization_dir: *serialization_dir
   model_save_interval:
