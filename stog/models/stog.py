@@ -38,7 +38,7 @@ from transformers import T5Tokenizer, T5Model, T5ForConditionalGeneration
 
 class STOG(Model):
 
-    def __init__(self, vocab, punctuation_ids, max_decode_length, t5, t5_attention_layer, t5_tokenizer, generator, graph_decoder, test_config):
+    def __init__(self, vocab, punctuation_ids, max_decode_length,  t5, t5_attention_layer, t5_tokenizer, generator, graph_decoder, test_config):
         super(STOG, self).__init__()
 
         self.vocab = vocab
@@ -61,19 +61,6 @@ class STOG(Model):
         if for_training:
             self.t5.train()
             t5_outputs = self.t5_encode_decode(encoder_inputs['token'], decoder_inputs['token'], encoder_inputs['mask'], parser_inputs['mask'])
-
-            """
-            decoder_outputs = self.decode_for_training(
-                decoder_inputs['token'],
-                decoder_inputs['pos_tag'],
-                decoder_inputs['char'],
-                decoder_inputs['coref'],
-                encoder_outputs['memory_bank'],
-                encoder_inputs['mask'],
-                encoder_outputs['final_states'],
-                parser_inputs['mask']
-            )
-            """
 
 
             generator_output = self.generator(
@@ -118,6 +105,8 @@ class STOG(Model):
             )
 
         else:
+            #print("I am here: parsermask ", parser_inputs['mask'].shape)
+            #print("I am here: batch ",batch)
 
             t5_outputs = self.t5_encode_decode(encoder_inputs['token'], decoder_inputs['token'], encoder_inputs['mask'], parser_inputs['mask'])
 
@@ -161,43 +150,95 @@ class STOG(Model):
             tgt_sequences.append(sequence)
         
 
+        # print("src_tokens: ", src_tokens)
+        # print("tgt_tokens: ", tgt_tokens)
+        # print("src_sequences: ", src_sequences)
+        # print("tgt_sequences: ", tgt_sequences)
+
+
         # add task prefix as required by model
         src_train = [
-            "amrgraphize: " + " ".join(sequence)
+            #"amrgraphize: " + " ".join(sequence)
+            " ".join(sequence)
             for sequence in list(src_sequences)
         ]
 
         tgt_train = [
-            " ".join(sequence)
+            " ".join(sequence) #+ " </s>"
             for sequence in list(tgt_sequences)
         ]
 
-        src_train_dict = self.t5_tokenizer.batch_encode_plus(
-            src_train,
-            max_length=Tx+1,
-            #pad_to_max_length=True,
-            truncation=True
-        )
 
-        tgt_train_dict = self.t5_tokenizer.batch_encode_plus(
-            tgt_train,
-            max_length=Ty,
-            #pad_to_max_length=True,
-            truncation=True
-        )
+        input_ids =  self.t5_tokenizer.convert_tokens_to_ids(src_sequences[0])
+        output_ids = self.t5_tokenizer.convert_tokens_to_ids(tgt_sequences[0])
 
+
+        # all_input_ids = []
+        # all_output_ids = []
+        # for seq in src_sequences:
+        #     input_ids  = t5_tokenizer.convert_tokens_to_ids(seq)
+        #     output_ids = t5_tokenizer.convert_tokens_to_ids(seq)
+        #     all_input_ids.append(input_ids)
+        #     all_output_ids.append(output_ids)
+        # print("all_input_ids: ", all_input_ids)
+        # print("all_output_ids: ", all_output_ids)
+
+        # src_train_dict = t5_tokenizer.batch_encode_plus(
+        #     src_train,
+        #     #max_length=Tx+1,
+        #     #pad_to_max_length=True,
+        #     truncation=True
+        # )
+
+
+        # tgt_train_dict = t5_tokenizer.batch_encode_plus(
+        #     tgt_train,
+        #     #max_length=Ty,
+        #     #pad_to_max_length=True,
+        #     truncation=True
+        # )
+   
      
-        # obtain input tensors
-        input_ids = torch.LongTensor(src_train_dict["input_ids"]).cuda()
-        output_ids = torch.LongTensor(tgt_train_dict["input_ids"]).cuda()      
+        # # obtain input tensors
+        input_ids = torch.LongTensor(input_ids).cuda()
+        output_ids = torch.LongTensor(output_ids).cuda()      
 
+        # src_mask = torch.LongTensor(src_train_dict["attention_mask"]).cuda()
+        # tgt_mask = torch.LongTensor(tgt_train_dict["attention_mask"]).cuda()
+
+        #output_ids[output_ids == t5_tokenizer.pad_token_id] = -100
+
+        # Add prefix mask
+        #prefix_mask = torch.LongTensor(torch.ones([B, 1]).long()).cuda()
+        #src_mask = torch.cat((prefix_mask, src_mask),1)
+
+        #eos_mask = torch.LongTensor(torch.ones([B, 1]).long()).cuda()
+        #parser_mask = torch.cat((parser_mask.long(), eos_mask),1)
+
+
+        # print("t5_decoded_input_tokens: ", t5_tokenizer.convert_ids_to_tokens(input_ids))#.data[0]))
+        # print("t5_decoded_output_tokens: ", t5_tokenizer.convert_ids_to_tokens(output_ids))#.data[0]))
+
+       
+        input_ids =  torch.reshape(input_ids, (1, -1))
+        output_ids =  torch.reshape(output_ids, (1, -1))
+
+        #print("src_train_dict: ", src_train_dict)
+        #print("tgt_train_dict: ", tgt_train_dict)
       
-        output_ids[output_ids == self.t5_tokenizer.pad_token_id] = -100
-
-        prefix_mask = torch.LongTensor(torch.ones([B, 1]).long()).cuda()
-        src_mask = torch.cat((prefix_mask, src_mask),1)
-
+        # print("src_mask: ", src_mask)
+        # print("tgt_mask: ", tgt_mask)
+        #print("specialtokens:", t5_tokenizer.all_special_tokens)
         
+        # print("input_ids: ", input_ids)
+        # print("output_ids: ", output_ids)
+        # print("input_ids.shape: ", input_ids.shape)
+        # print("output_ids.shape: ", output_ids.shape)
+        # print("src_mask.shape: ", src_mask.shape)
+        # print("parser_mask.shape: ", parser_mask.shape)
+        # print("Tx: ", Tx)
+        # print("Ty: ", Ty)
+
         outputs = self.t5(input_ids=input_ids, labels=output_ids,  attention_mask=src_mask, decoder_attention_mask=parser_mask, use_cache=False, output_attentions=True, output_hidden_states=True)
 
         decoder_hiddens = outputs[2][6]             # B,Ty,H
@@ -207,7 +248,27 @@ class STOG(Model):
        
 
         coref_attentions = torch.sum(decoder_self_attentions, dim=1)        # B,Ty,Ty
-        attn_h, copy_attentions, coverage = self.t5_attention_layer(decoder_hiddens, encoder_hiddens[:,1:,:], src_mask[:,1:])
+        attn_h, copy_attentions, coverage = self.t5_attention_layer(decoder_hiddens, encoder_hiddens, src_mask)
+       
+        # print("decoder_hiddens.shape: ", decoder_hiddens.shape)
+        # print("coref_attentions.shape: ", coref_attentions.shape)
+        # print("copy_attentions.shape: ", copy_attentions.shape)
+        # print("encoder_hiddens.shape: ", encoder_hiddens.shape)
+
+
+        # t5_outputs = self.t5.generate(input_ids, attention_mask=src_mask, 
+        #     repetition_penalty=1.2, 
+        #     do_sample=False,
+        #     num_beams=5, 
+        #     max_length=self.max_decode_length,
+        #     decoder_start_token="@start@")
+        
+        # print("t5_outs: ", t5_outputs)
+        # for i,seq in enumerate(t5_outputs):
+        # #     print("src: ", src_train[i])
+        # #     print("t5_mask: ", t5_mask[i])
+        #     print("seq: ", self.t5_tokenizer.convert_ids_to_tokens(seq))
+        #     print("\n")
 
 
         return dict(
@@ -293,6 +354,7 @@ class STOG(Model):
         # [batch, num_tokens]
         encoder_mask = get_text_field_mask(batch['src_tokens'])
 
+        #print("batch src tokens: ", batch['src_tokens'])
 
         encoder_inputs = dict(
             bert_token=bert_token_inputs,
@@ -337,6 +399,10 @@ class STOG(Model):
         # [batch, num_tokens]
         coref_targets = batch["tgt_copy_indices"][:, 1:]
         # [batch, num_tokens, num_tokens + coref_na]
+      
+
+        #print("batch copy map:", batch['tgt_copy_map']) # exclude BOS
+
         coref_attention_maps = batch['tgt_copy_map'][:, 1:]  # exclude BOS
         # [batch, num_tgt_tokens, num_src_tokens + unk]
         copy_targets = batch["src_copy_indices"][:, 1:]
@@ -392,6 +458,7 @@ class STOG(Model):
 
         return encoder_inputs, decoder_inputs, generator_inputs, parser_inputs
 
+    ## not using for now
     def encode(self, bert_tokens, token_subword_index, tokens, pos_tags, must_copy_tags, chars, mask):
 
         # [batch, num_tokens, embedding_size]
@@ -478,7 +545,7 @@ class STOG(Model):
         mask = mask[:, 1:]
         return self.graph_decoder(memory_bank, edge_heads, edge_labels, corefs, mask)#, save=save)
 
-
+    ## not using for now
     def decode(self, input_dict):
         src_tokens = input_dict['t5_src_tokens']
         memory_bank = input_dict['t5_encoder_memory_bank']
@@ -489,12 +556,12 @@ class STOG(Model):
         tag_luts = input_dict['tag_luts']
         invalid_indexes = input_dict['invalid_indexes']
 
-        if self.beam_size == 0:
-            generator_outputs = self.t5_decode_with_pointer_generator(src_tokens,
+        #if self.beam_size == 0:
+        generator_outputs = self.t5_decode_with_pointer_generator(src_tokens,
                 memory_bank, mask, states, copy_attention_maps, copy_vocabs, tag_luts, invalid_indexes)
-        else:
-            generator_outputs = self.beam_search_with_pointer_generator(
-                memory_bank, mask, states, copy_attention_maps, copy_vocabs, tag_luts, invalid_indexes)
+        #else:
+        #    generator_outputs = self.beam_search_with_pointer_generator(
+        #        memory_bank, mask, states, copy_attention_maps, copy_vocabs, tag_luts, invalid_indexes)
 
         parser_outputs = self.decode_with_graph_parser(
             generator_outputs['decoder_memory_bank'],
@@ -556,32 +623,46 @@ class STOG(Model):
                 sequence.append(self.vocab.get_token_from_index(src_tokens[b,t].item(), "encoder_token_ids")) 
             src_sequences.append(sequence)
 
-        # add task prefix as required by model
-        src_train = [
-            "amrgraphize: " + " ".join(sequence)
-            for sequence in list(src_sequences)
-        ]
+        # # add task prefix as required by model
+        # src_train = [
+        #     "amrgraphize: " + " ".join(sequence)
+        #     for sequence in list(src_sequences)
+        # ]
 
-        src_train_dict = self.t5_tokenizer.batch_encode_plus(
-            src_train,
-            max_length=Tx+1,
-            #pad_to_max_length=True,
-            truncation=True
-        )
+        # src_train_dict = t5_tokenizer.batch_encode_plus(
+        #     src_train,
+        #     max_length=Tx+1,
+        #     #pad_to_max_length=True,
+        #     truncation=True
+        # )
 
-        # obtain input tensors
-        input_ids = torch.LongTensor(src_train_dict["input_ids"]).cuda()
-        decoder_input_ids = torch.tensor(self.t5_tokenizer.encode("<pad>")).repeat(B,1).cuda()
+        # # obtain input tensors
+        # input_ids = torch.LongTensor(src_train_dict["input_ids"]).cuda()
+        # decoder_input_ids = torch.tensor(t5_tokenizer.encode("<pad>")).repeat(B,1).cuda()
+
+        print("seq: ", src_sequences[0])
 
 
-        t5_mask = torch.cat((torch.ones(B,1).cuda(), mask.float()), -1)
-        t5_outputs = self.t5.generate(input_ids, attention_mask=t5_mask, repetition_penalty=1.2, do_sample=False, num_beams=5, max_length=self.max_decode_length)
+        input_ids = t5_tokenizer.convert_tokens_to_ids(src_sequences[0])
+        input_ids = torch.LongTensor(input_ids).cuda()
+        input_ids = torch.reshape(input_ids, (1, -1))
+
+        print("input_ids: ", input_ids)
+        print("mask: ", mask)
+
+        # t5_mask = torch.cat((torch.ones(B,1).cuda(), mask.float()), -1)
+        t5_outputs = self.t5.generate(input_ids, attention_mask=mask, 
+            repetition_penalty=1.2, 
+            do_sample=False,
+            num_beams=5, 
+            max_length=self.max_decode_length,
+            decoder_start_token="@start@")
         
-        # for i,seq in enumerate(t5_outputs):
+        for i,seq in enumerate(t5_outputs):
         #     print("src: ", src_train[i])
         #     print("t5_mask: ", t5_mask[i])
-        #     print("seq: ", self.t5_tokenizer.convert_ids_to_tokens(seq))
-        #     print("\n")
+            print("seq: ", t5_tokenizer.convert_ids_to_tokens(seq))
+            print("\n")
         # print("len(outputs): ", len(t5_outputs))
 
         
@@ -589,7 +670,7 @@ class STOG(Model):
             print("\nDecoding one step...", step_i)
             # 2. Decode one step.
 
-            outputs = self.t5(input_ids=input_ids, attention_mask=t5_mask, decoder_input_ids=t5_outputs[:,step_i].unsqueeze(1),  use_cache=False, output_attentions=True, output_hidden_states=True)
+            outputs = self.t5(input_ids=input_ids, attention_mask=mask, decoder_input_ids=t5_outputs[:,step_i].unsqueeze(1),  use_cache=False, output_attentions=True, output_hidden_states=True)
             _decoder_outputs = outputs[1][6]            # B,T,H -> (1,1,H)
             encoder_hiddens  = outputs[4][5]             # B,Tx+1,H
             decoder_self_attentions = outputs[2][5]     # B,8,Ty,Ty
@@ -622,7 +703,7 @@ class STOG(Model):
             #_decoder_outputs = torch.cat((part1,part2), dim=1)
             _decoder_outputs = part2
             """
-            attn_h, _copy_attentions, coverage = self.t5_attention_layer(_decoder_outputs, encoder_hiddens[:,1:,:], mask)
+            attn_h, _copy_attentions, coverage = self.t5_attention_layer(_decoder_outputs, encoder_hiddens, mask)
             cat_attentions= []
             # 3. Run pointer/generator.
             if step_i == 0:
@@ -664,7 +745,7 @@ class STOG(Model):
             all_decodes = {}
             max_decode = 0
             for b, seq in enumerate(preds):
-                t5_encoded_pred = torch.LongTensor(self.t5_tokenizer.encode(seq)).cuda()
+                t5_encoded_pred = torch.LongTensor(t5_tokenizer.encode(seq)).cuda()
                 if len(t5_encoded_pred) > max_decode:
                     max_decode = len(t5_encoded_pred)
                 all_decodes[b] = t5_encoded_pred
@@ -850,7 +931,7 @@ class STOG(Model):
         )
 
     @classmethod
-    def from_params(cls, vocab, params):
+    def from_params(cls, vocab, t5_tokenizer, params):
         logger.info('Building the STOG Model...')
 
         """
@@ -1043,7 +1124,7 @@ class STOG(Model):
 
 
         t5 = T5ForConditionalGeneration.from_pretrained("t5-small")
-        t5.resize_token_embeddings(len(vocab._t5_tokenizer))
+        t5.resize_token_embeddings(len(t5_tokenizer))
         
         return cls(
             vocab=vocab,
@@ -1051,7 +1132,7 @@ class STOG(Model):
             max_decode_length=params.get('max_decode_length', 50),
             t5= t5,
             t5_attention_layer= source_attention_layer,
-            t5_tokenizer = vocab._t5_tokenizer,
+            t5_tokenizer = t5_tokenizer,
             generator=generator,
             graph_decoder=graph_decoder,
             test_config=params.get('mimick_test', None)

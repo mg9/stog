@@ -100,12 +100,14 @@ class AdjacencyField(Field[torch.Tensor]):
 
     @overrides
     def as_tensor(self, padding_lengths: Dict[str, int]) -> torch.Tensor:
+
         desired_num_tokens = padding_lengths['num_tokens']
         tensor = torch.ones(desired_num_tokens, desired_num_tokens) * self._padding_value
         labels = self._indexed_labels or [1 for _  in range(len(self.indices))]
 
         for index, label in zip(self.indices, labels):
             tensor[index] = label
+
         return tensor
 
     @overrides

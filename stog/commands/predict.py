@@ -139,7 +139,7 @@ class _PredictManager:
             yield self._predictor.dump_line(output)
 
     def _predict_instances(self, batch_data: List[Instance]) -> Iterator[str]:
-        if len(batch_data) == 1:
+        if False: #len(batch_data) == 1:
             results = [self._predictor.predict_instance(batch_data[0])]
         else:
             results = self._predictor.predict_batch_instance(batch_data)

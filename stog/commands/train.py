@@ -20,8 +20,8 @@ from stog.metrics import dump_metrics
 logger = logging.init_logger()
 
 
-# Huggingface
 from transformers import T5Tokenizer
+t5_tokenizer = T5Tokenizer.from_pretrained('t5-small', additional_special_tokens=["@start@", "@end@", "amrgraphize:"])
 
 def create_serialization_dir(params: Params) -> None:
     """
@@ -96,14 +96,14 @@ def train_model(params: Params):
 
     # Load data.
     data_params = params['data']
-    dataset = dataset_from_params(data_params)
+    dataset = dataset_from_params(data_params, t5_tokenizer)
     train_data = dataset['train']
     dev_data = dataset.get('dev')
     test_data = dataset.get('test')
 
     # Vocabulary and iterator are created here.
     vocab_params = params.get('vocab', {})
-    vocab = Vocabulary.from_instances(instances=train_data, **vocab_params)
+    vocab = Vocabulary.from_instances(instances=train_data, t5_tokenizer=t5_tokenizer, **vocab_params)
     # Initializing the model can have side effect of expanding the vocabulary
     vocab.save_to_files(os.path.join(environment_params['serialization_dir'], "vocabulary"))
 
@@ -111,7 +111,7 @@ def train_model(params: Params):
 
     # Build the model.
     model_params = params['model']
-    model = getattr(Models, model_params['model_type']).from_params(vocab, model_params)
+    model = getattr(Models, model_params['model_type']).from_params(vocab, vocab.t5_tokenizer, model_params)
     logger.info(model)
 
     # Train

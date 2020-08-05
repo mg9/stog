@@ -64,6 +64,10 @@ class PointerGenerator(torch.nn.Module):
         # [batch_size, num_target_nodes, num_source_nodes]
         scaled_source_attentions = torch.mul(source_attentions, p_copy_source.expand_as(source_attentions))
         # [batch_size, num_target_nodes, dynamic_vocab_size]
+
+        # print("source_attention_maps.shape: ", source_attention_maps.shape)
+        # print("scaled_source_attentions.shape: ", scaled_source_attentions.shape)
+
         scaled_copy_source_probs = torch.bmm(scaled_source_attentions, source_attention_maps.float())
 
         # Probability distribution over the dynamic vocabulary.
@@ -74,6 +78,9 @@ class PointerGenerator(torch.nn.Module):
      
         scaled_target_attentions = torch.mul(target_attentions, p_copy_target.expand_as(target_attentions))
         # [batch_size, num_target_nodes, dymanic_vocab_size]
+
+        # print("target_attention_maps: ", target_attention_maps)
+        # print("scaled_target_attentions.shape: ", scaled_target_attentions.shape)
 
         scaled_copy_target_probs = torch.bmm(scaled_target_attentions, target_attention_maps.float())
 

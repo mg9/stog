@@ -25,7 +25,7 @@ DEFAULT_EOS_TOKEN =  "</s>" #"@@UNKNOWN@@"
 
 NAMESPACE_PADDING_FILE = 'non_padded_namespaces.txt'
 
-from transformers import T5Tokenizer
+#from transformers import T5Tokenizer
 
 class _NamespaceDependentDefaultDict(defaultdict):
     """
@@ -216,11 +216,12 @@ class Vocabulary:
                  pretrained_files: Optional[Dict[str, str]] = None,
                  only_include_pretrained_words: bool = False,
                  tokens_to_add: Dict[str, List[str]] = None,
+                 t5_tokenizer = None,
                  min_pretrained_embeddings: Dict[str, int] = None) -> None:
         self._padding_token = DEFAULT_PADDING_TOKEN
         self._oov_token = DEFAULT_OOV_TOKEN
         self._eos_token = DEFAULT_EOS_TOKEN
-        self._t5_tokenizer = T5Tokenizer.from_pretrained('t5-small', additional_special_tokens=["@start@", "@end@", "amrgraphize:"])
+        self.t5_tokenizer =t5_tokenizer
 
         self._non_padded_namespaces = set(non_padded_namespaces)
         self._token_to_index = _TokenToIndexDefaultDict(self._non_padded_namespaces,
@@ -360,6 +361,7 @@ class Vocabulary:
                        pretrained_files: Optional[Dict[str, str]] = None,
                        only_include_pretrained_words: bool = False,
                        tokens_to_add: Dict[str, List[str]] = None,
+                       t5_tokenizer= None,
                        min_pretrained_embeddings: Dict[str, int] = None) -> 'Vocabulary':
         """
         Constructs a vocabulary given a collection of `Instances` and some parameters.
@@ -379,6 +381,7 @@ class Vocabulary:
                    pretrained_files=pretrained_files,
                    only_include_pretrained_words=only_include_pretrained_words,
                    tokens_to_add=tokens_to_add,
+                   t5_tokenizer = t5_tokenizer,
                    min_pretrained_embeddings=min_pretrained_embeddings)
 
     # There's enough logic here to require a custom from_params.
@@ -588,8 +591,8 @@ class Vocabulary:
             index = len(self._token_to_index[namespace])
             self._token_to_index[namespace][token] = index
             self._index_to_token[namespace][index] = token
-            #if namespace == "decoder_token_ids":
-            #    self._t5_tokenizer.add_tokens(token)
+            if namespace == "encoder_token_ids" or namespace == "decoder_token_ids":
+                self.t5_tokenizer.add_tokens(token)
             return index
         else:
             return self._token_to_index[namespace][token]

@@ -12,7 +12,7 @@ ROOT_CHAR="<r>"
 logger = logging.init_logger()
 
 
-def load_dataset_reader(dataset_type, *args, **kwargs):
+def load_dataset_reader(dataset_type,t5_tokenizer, *args, **kwargs):
     if dataset_type == "AMR":
         dataset_reader = AbstractMeaningRepresentationDatasetReader(
             token_indexers=dict(
@@ -21,7 +21,8 @@ def load_dataset_reader(dataset_type, *args, **kwargs):
                 decoder_tokens=SingleIdTokenIndexer(namespace="decoder_token_ids"),
                 decoder_characters=TokenCharactersIndexer(namespace="decoder_token_characters")
             ),
-            word_splitter=kwargs.get('word_splitter', None)
+            word_splitter=kwargs.get('word_splitter', None),
+            t5_tokenizer=t5_tokenizer
         )
 
     else:
@@ -29,11 +30,11 @@ def load_dataset_reader(dataset_type, *args, **kwargs):
     return dataset_reader
 
 
-def load_dataset(path, dataset_type, *args, **kwargs):
-    return load_dataset_reader(dataset_type, *args, **kwargs).read(path)
+def load_dataset(path, dataset_type, t5_tokenizer, *args, **kwargs):
+    return load_dataset_reader(dataset_type,t5_tokenizer, *args, **kwargs).read(path)
 
 
-def dataset_from_params(params):
+def dataset_from_params(params, t5_tokenizer):
 
     train_data = os.path.join(params['data_dir'], params['train_data'])
     dev_data = os.path.join(params['data_dir'], params['dev_data'])
@@ -41,15 +42,15 @@ def dataset_from_params(params):
     data_type = params['data_type']
 
     logger.info("Building train datasets ...")
-    train_data = load_dataset(train_data, data_type, **params)
+    train_data = load_dataset(train_data, data_type, t5_tokenizer, **params)
 
     logger.info("Building dev datasets ...")
-    dev_data = load_dataset(dev_data, data_type, **params)
+    dev_data = load_dataset(dev_data, data_type, t5_tokenizer, **params)
 
     if test_data:
         test_data = os.path.join(params['data_dir'], params['test_data'])
         logger.info("Building test datasets ...")
-        test_data = load_dataset(test_data, data_type, **params)
+        test_data = load_dataset(test_data, data_type,t5_tokenizer,  **params)
 
     #logger.info("Building vocabulary ...")
     #build_vocab(fields, train_data)
