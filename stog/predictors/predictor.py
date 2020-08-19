@@ -118,8 +118,8 @@ class Predictor(Registrable):
 
 
         # Load t5 tokenizer
-        if os.path.isdir("t5_vocab"):
-            t5_tokenizer =  T5Tokenizer.from_pretrained("t5_vocab")
+        if os.path.isdir("t5-vocab"):
+            t5_tokenizer =  T5Tokenizer.from_pretrained("t5-vocab")
 
 
         word_splitter = None

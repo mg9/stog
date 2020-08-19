@@ -147,17 +147,19 @@ def train_model(params: Params):
         raise
 
     # Now tar up results
-    archive_model(serialization_dir)
+    #archive_model(serialization_dir)
 
-    logger.info("Loading the best epoch weights.")
-    best_model_state_path = os.path.join(serialization_dir, 'best.th')
-    best_model_state = torch.load(best_model_state_path)
-    best_model = model
-    if not isinstance(best_model, torch.nn.DataParallel):
-        best_model_state = {re.sub(r'^module\.', '', k):v for k, v in best_model_state.items()}
-    best_model.load_state_dict(best_model_state)
+    logger.info("Training is over...")
 
-    return best_model
+    # logger.info("Loading the best epoch weights.")
+    # best_model_state_path = os.path.join(serialization_dir, 'best.th')
+    # best_model_state = torch.load(best_model_state_path)
+    # best_model = model
+    # if not isinstance(best_model, torch.nn.DataParallel):
+    #     best_model_state = {re.sub(r'^module\.', '', k):v for k, v in best_model_state.items()}
+    # best_model.load_state_dict(best_model_state)
+
+    # return best_model
 
 
 if __name__ == "__main__":

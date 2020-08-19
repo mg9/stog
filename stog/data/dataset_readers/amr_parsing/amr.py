@@ -498,7 +498,7 @@ class AMRGraph(penman.Graph):
 
 
 
-    def get_list_data(self, amr, t5_tokenizer, eos=None, bert_tokenizer=None, max_tgt_length=None): #bos=None
+    def get_list_data(self, amr, t5_tokenizer, bos=None, eos=None, bert_tokenizer=None, max_tgt_length=None): #bos=None
         node_list = self.get_list_node()
 
         tgt_tokens = []
@@ -545,11 +545,11 @@ class AMRGraph(penman.Graph):
                 tgt_tokens, head_tags, head_indices, node_to_idx)
 
         copy_offset = 0
-        #if bos:
-        #    tgt_tokens = [bos] + tgt_tokens
-        #    copy_offset += 1
+        if bos:
+           tgt_tokens = [bos] + tgt_tokens
+           copy_offset += 1
         if eos:
-            tgt_tokens = tgt_tokens + [eos] + [eos] #double eos to use correct tgtmaps
+            tgt_tokens = tgt_tokens + [eos] #+ [eos] #double eos to use correct tgtmaps
 
 
         head_indices[node_to_idx[self.variable_to_node[self.top]][0]] = 0

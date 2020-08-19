@@ -589,9 +589,8 @@ class Vocabulary:
             index = len(self._token_to_index[namespace])
             self._token_to_index[namespace][token] = index
             self._index_to_token[namespace][index] = token
-            if namespace == "encoder_token_ids" or namespace == "decoder_token_ids":
-                #self.t5_tokenizer.convert_tokens_to_ids(token)
-                self.t5_tokenizer.add_tokens(token)
+            #if namespace == "encoder_token_ids" or namespace == "decoder_token_ids":
+            #    self.t5_tokenizer.add_tokens(token)
             return index
         else:
             return self._token_to_index[namespace][token]
