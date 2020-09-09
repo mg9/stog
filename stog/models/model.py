@@ -251,13 +251,13 @@ class Model(torch.nn.Module):
 
         model_params = config['model']
 
-        t5_tokenizer = T5Tokenizer.from_pretrained("t5-vocab")
+        # t5_tokenizer = T5Tokenizer.from_pretrained("t5-vocab")
         # The experiment config tells us how to _train_ a model, including where to get pre-trained
         # embeddings from.  We're now _loading_ the model, so those embeddings will already be
         # stored in our weights.  We don't need any pretrained weight file anymore, and we don't
         # want the code to look for it, so we remove it from the parameters here.
         remove_pretrained_embedding_params(model_params)
-        model = cls.from_params(vocab=vocab, t5_tokenizer= t5_tokenizer, params=model_params)
+        model = cls.from_params(vocab=vocab, params=model_params)
         model_state = torch.load(weights_file, map_location=device_mapping(-1))
         if not isinstance(model, torch.nn.DataParallel):
             model_state = {re.sub(r'^module\.', '', k):v for k, v in model_state.items()}

@@ -498,7 +498,7 @@ class AMRGraph(penman.Graph):
 
 
 
-    def get_list_data(self, amr, t5_tokenizer, bos=None, eos=None, bert_tokenizer=None, max_tgt_length=None): #bos=None
+    def get_list_data(self, amr, bos=None, eos=None, bert_tokenizer=None, max_tgt_length=None): #bos=None , t5_tokenizer, 
         node_list = self.get_list_node()
 
         tgt_tokens = []
@@ -602,7 +602,7 @@ class AMRGraph(penman.Graph):
 
         # Source Copy
         src_tokens = self.get_src_tokens()
-        src_tokens = ["amrgraphize:"] + src_tokens + ["</s>"]
+        src_tokens = ["summarize:"] + src_tokens + ["</s>"]
     
         # print("bos:", t5_tokenizer.bos_token)
         # print("eos:", t5_tokenizer.eos_token)

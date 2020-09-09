@@ -12,7 +12,7 @@ model:
   use_char_cnn: True
   use_coverage: True
   use_aux_encoder: False
-  use_bert: True
+  use_bert: False
 
   bert:
     pretrained_model_dir: data/bert-base-cased
@@ -43,14 +43,14 @@ model:
   encoder_char_embedding:
     num_embeddings:
     vocab_namespace: 'encoder_token_characters'
-    embedding_dim: &encoder_char_embedding_dim 100
+    embedding_dim: &encoder_char_embedding_dim 62
     padding_index: 0
     dropout: 0
     pretrained_file:
 
   encoder_char_cnn:
     embedding_dim: *encoder_char_embedding_dim
-    num_filters: 100
+    num_filters: 62
     ngram_filter_sizes: [3]
 
   decoder_token_embedding:
@@ -78,14 +78,14 @@ model:
   decoder_char_embedding:
     num_embeddings:
     vocab_namespace: 'decoder_token_characters'
-    embedding_dim: &decoder_char_embedding_dim 100
+    embedding_dim: &decoder_char_embedding_dim 62
     padding_index: 0
     dropout: 0.33
     pretrained_file:
 
   decoder_char_cnn:
     embedding_dim: *decoder_char_embedding_dim
-    num_filters: 100
+    num_filters: 62
     ngram_filter_sizes: [3]
 
   encoder:
@@ -119,7 +119,7 @@ model:
 
   graph_decoder:
     decode_algorithm: 'greedy'
-    input_size: *decoder_hidden_size
+    input_size: 512 #*decoder_hidden_size
     edge_node_hidden_size: 256
     edge_label_hidden_size: 128
     dropout: 0.33
@@ -153,7 +153,7 @@ data:
   data_type: AMR
   batch_first: True
   iterator:
-    train_batch_size: &train_batch_size 16
+    train_batch_size: &train_batch_size 64
     test_batch_size: 32
     iter_type: BucketIterator
     sorting_keys:  # (field, padding type)
@@ -169,7 +169,7 @@ environment:
   seed: 1
   numpy_seed: 1
   torch_seed: 1
-  serialization_dir: &serialization_dir ckpt-amr-2.4
+  serialization_dir: &serialization_dir ckpt-amr-2.1
   file_friendly_logging: False
   gpu: True
   cuda_device: 0
@@ -182,7 +182,7 @@ trainer:
   max_grad_norm: 5.0
   batch_size: *train_batch_size
   shuffle: True
-  epochs: 20
+  epochs: 120
   dev_metric: +F1
   serialization_dir: *serialization_dir
   model_save_interval:

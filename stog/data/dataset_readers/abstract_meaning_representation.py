@@ -29,7 +29,7 @@ class AbstractMeaningRepresentationDatasetReader(DatasetReader):
     def __init__(self,
                  token_indexers: Dict[str, TokenIndexer] = None,
                  word_splitter = None,
-                 t5_tokenizer = None,
+                 # t5_tokenizer = None,
                  lazy: bool = False,
                  skip_first_line: bool = True,
                  evaluation: bool = False
@@ -50,7 +50,7 @@ class AbstractMeaningRepresentationDatasetReader(DatasetReader):
         self._number_non_oov_pos_tags = 0
         self._number_pos_tags = 0
 
-        self.t5_tokenizer =t5_tokenizer
+        # self.t5_tokenizer =t5_tokenizer
 
     def report_coverage(self):
         if self._number_bert_ids != 0:
@@ -73,13 +73,13 @@ class AbstractMeaningRepresentationDatasetReader(DatasetReader):
         file_path = cached_path(file_path)
         logger.info("Reading instances from lines in file at: %s", file_path)
         for i,amr in enumerate(AMRIO.read(file_path)):
-            #if i>1000:
-            #    break
-            yield self.text_to_instance(amr, self.t5_tokenizer)
+            # if i>5:
+            #     break
+            yield self.text_to_instance(amr)#, self.t5_tokenizer)
         self.report_coverage()
 
     @overrides
-    def text_to_instance(self, amr, t5_tokenizer) -> Instance:
+    def text_to_instance(self, amr) -> Instance: # t5_tokenizer
         # pylint: disable=arguments-differ
 
         fields: Dict[str, Field] = {}
@@ -87,7 +87,7 @@ class AbstractMeaningRepresentationDatasetReader(DatasetReader):
         max_tgt_length = None if self._evaluation else 60
 
         list_data = amr.graph.get_list_data(
-            amr, t5_tokenizer, START_SYMBOL, END_SYMBOL, self._word_splitter, max_tgt_length) # START_SYMBOL,
+            amr, START_SYMBOL, END_SYMBOL, self._word_splitter, max_tgt_length) # START_SYMBOL, t5_tokenizer,
 
         # These four fields are used for seq2seq model and target side self copy
         fields["src_tokens"] = TextField(
