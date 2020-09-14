@@ -1,23 +1,7 @@
 # AMR Parsing as Sequence-to-Graph Transduction
 
-Code for the AMR Parser 
-in our ACL 2019 paper "[AMR Parsing as Sequence-to-Graph Transduction](https://arxiv.org/pdf/1905.08704.pdf)".   
+Reference: "[AMR Parsing as Sequence-to-Graph Transduction](https://arxiv.org/pdf/1905.08704.pdf)".   
 
-If you find our code is useful, please cite:
-```
-@inproceedings{zhang-etal-2018-stog,
-    title = "{AMR Parsing as Sequence-to-Graph Transduction}",
-    author = "Zhang, Sheng and
-      Ma, Xutai and
-      Duh, Kevin and
-      Van Durme, Benjamin",
-    booktitle = "Proceedings of the 57th Annual Meeting of the Association for Computational Linguistics (Volume 1: Long Papers)",
-    month = jul,
-    year = "2019",
-    address = "Florence, Italy",
-    publisher = "Association for Computational Linguistics"
-}
-```
 
 ## 1. Environment Setup
 
@@ -126,7 +110,7 @@ In case that you only need the pre-trained model prediction (i.e., `test.pred.tx
 
 ## Acknowledgements
 
-We adopted some modules or code snippets from [AllenNLP](https://github.com/allenai/allennlp), 
+Adopted some modules or code snippets from [AllenNLP](https://github.com/allenai/allennlp), 
 [OpenNMT-py](https://github.com/OpenNMT/OpenNMT-py)
  and [NeuroNLP2](https://github.com/XuezheMax/NeuroNLP2).
 Thanks to these open-source projects!
