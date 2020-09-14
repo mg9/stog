@@ -222,6 +222,10 @@ class Trainer:
         else:
             return self._model.get_metrics(reset=True)
 
+        # metrics = dict()
+        # metrics['training_loss'] = training_loss
+        # return metrics
+
     def _metrics_to_tensorboard(self,
                                 epoch: int,
                                 train_metrics: dict,
@@ -321,6 +325,11 @@ class Trainer:
             return self._model.module.get_metrics(reset=True, mimick_test=epoch > 50)
         else:
             return self._model.get_metrics(reset=True, mimick_test=epoch > 50)
+
+
+        # metrics = dict()
+        # metrics['dev_loss'] = dev_loss
+        # return metrics
 
     def train(self):
         """Trains the supplied model with the supplied parameters.

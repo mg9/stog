@@ -241,6 +241,7 @@ class AMRGraph(penman.Graph):
     def __str__(self):
         self._triples = penman.alphanum_order(self._triples)
         return amr_codec.encode(self)
+     
 
     def _build_extras(self):
         G = nx.DiGraph()
@@ -389,6 +390,11 @@ class AMRGraph(penman.Graph):
                 t = penman.Triple(source=node.identifier, relation=attr, target=new)
             triples.append(t)
         if not found:
+            # print("self._triples: ", self._triples)
+            # print("node.identifier: ", node.identifier)
+            # print("attr: ", attr)
+            # print("old: ", old)
+            # pass
             raise KeyError
         self._triples = penman.alphanum_order(triples)
 
@@ -602,18 +608,13 @@ class AMRGraph(penman.Graph):
 
         # Source Copy
         src_tokens = self.get_src_tokens()
-        src_tokens = ["summarize:"] + src_tokens + ["</s>"]
-    
-        # print("bos:", t5_tokenizer.bos_token)
-        # print("eos:", t5_tokenizer.eos_token)
-        # print("pad:", t5_tokenizer.pad_token)
-
+        #src_tokens = ["summarize:"] + src_tokens + ["</s>"]
+        src_tokens = src_tokens 
 
         src_token_ids = None
         src_token_subword_index = None
         src_pos_tags = amr.pos_tags
-        
-        src_pos_tags = ["<unk>"] + src_pos_tags + ["<unk>"]
+        src_pos_tags = src_pos_tags
 
         src_copy_vocab = SourceCopyVocabulary(src_tokens)
         src_copy_indices = src_copy_vocab.index_sequence(tgt_tokens)
@@ -709,10 +710,17 @@ class AMRGraph(penman.Graph):
                     heads[i] = 1
             return heads
 
+        # print("---")
+
         nodes = [normalize_number(n) for n in prediction['nodes']]
         heads = correct_multiroot(prediction['heads'])
         corefs = [int(x) for x in prediction['corefs']]
         head_labels = prediction['head_labels']
+
+        # print("nodes:", nodes)
+        # print("heads:", heads)
+        # print("corefs:", corefs)
+        # print("head_labels:", head_labels)
 
         triples = []
         top = None

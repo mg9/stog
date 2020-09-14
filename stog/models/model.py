@@ -251,7 +251,6 @@ class Model(torch.nn.Module):
 
         model_params = config['model']
 
-        # t5_tokenizer = T5Tokenizer.from_pretrained("t5-vocab")
         # The experiment config tells us how to _train_ a model, including where to get pre-trained
         # embeddings from.  We're now _loading_ the model, so those embeddings will already be
         # stored in our weights.  We don't need any pretrained weight file anymore, and we don't

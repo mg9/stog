@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 DEFAULT_NON_PADDED_NAMESPACES = ("*tags", "*labels")
 DEFAULT_PADDING_TOKEN = "<pad>" #"@@PADDING@@"
-DEFAULT_OOV_TOKEN =  "<unk>" #"@@UNKNOWN@@"
+DEFAULT_OOV_TOKEN =  "@@UNKNOWN@@"
 DEFAULT_EOS_TOKEN =  "</s>"
 
 NAMESPACE_PADDING_FILE = 'non_padded_namespaces.txt'
@@ -214,12 +214,10 @@ class Vocabulary:
                  pretrained_files: Optional[Dict[str, str]] = None,
                  only_include_pretrained_words: bool = False,
                  tokens_to_add: Dict[str, List[str]] = None,
-                 t5_tokenizer = None,
                  min_pretrained_embeddings: Dict[str, int] = None) -> None:
         self._padding_token = DEFAULT_PADDING_TOKEN
         self._oov_token = DEFAULT_OOV_TOKEN
         self._eos_token = DEFAULT_EOS_TOKEN
-        self.t5_tokenizer =t5_tokenizer
 
         self._non_padded_namespaces = set(non_padded_namespaces)
         self._token_to_index = _TokenToIndexDefaultDict(self._non_padded_namespaces,
@@ -359,7 +357,6 @@ class Vocabulary:
                        pretrained_files: Optional[Dict[str, str]] = None,
                        only_include_pretrained_words: bool = False,
                        tokens_to_add: Dict[str, List[str]] = None,
-                       t5_tokenizer= None,
                        min_pretrained_embeddings: Dict[str, int] = None) -> 'Vocabulary':
         """
         Constructs a vocabulary given a collection of `Instances` and some parameters.
@@ -379,7 +376,6 @@ class Vocabulary:
                    pretrained_files=pretrained_files,
                    only_include_pretrained_words=only_include_pretrained_words,
                    tokens_to_add=tokens_to_add,
-                   t5_tokenizer = t5_tokenizer,
                    min_pretrained_embeddings=min_pretrained_embeddings)
 
     # There's enough logic here to require a custom from_params.

@@ -169,14 +169,14 @@ environment:
   seed: 1
   numpy_seed: 1
   torch_seed: 1
-  serialization_dir: &serialization_dir ckpt-amr-2.1
+  serialization_dir: &serialization_dir ckpt-amr-2.5
   file_friendly_logging: False
   gpu: True
   cuda_device: 0
 
 trainer:
   device:
-  no_grad: []
+  no_grad: [t5.shared.weight]
   optimizer_type: adam
   learning_rate: 0.001
   max_grad_norm: 5.0

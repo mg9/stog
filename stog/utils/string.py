@@ -8,8 +8,8 @@ JsonDict = Dict[str, Any]
 # data is processed for these symbols to be lowercase, not uppercase (because we have code that
 # will lowercase tokens for you in some circumstances, and we need this symbol to not change in
 # those cases).
-START_SYMBOL = '<pad>' #'@start@'
-END_SYMBOL = '</s>'
+START_SYMBOL = '@start@'
+END_SYMBOL = '@end@'
 
 def is_abstract_token(token):
     return re.search(r'^([A-Z]+_)+\d+$', token) or re.search(r'^\d0*$', token)
@@ -18,6 +18,9 @@ def is_abstract_token(token):
 def is_english_punct(c):
     return re.search(r'^[,.?!:;"\'-(){}\[\]]$', c)
 
+
+def is_english_punct_or_t5_prefix(c):
+    return is_english_punct(c) or c == "summarize:"
 
 def find_similar_token(token, tokens):
     token = re.sub(r'-\d\d$', '', token) # .lower())

@@ -143,9 +143,8 @@ class _PredictManager:
             results = [self._predictor.predict_instance(batch_data[0])]
         else:
             results = self._predictor.predict_batch_instance(batch_data)
-        for output in results:
+        for (i,output) in enumerate(results):
             yield self._predictor.dump_line(output)
-
     def _maybe_print_to_console_and_file(self,
                                          prediction: str,
                                          model_input: str = None) -> None:
@@ -178,7 +177,10 @@ class _PredictManager:
     def run(self) -> None:
         has_reader = self._dataset_reader is not None
         if has_reader:
-            for batch in lazy_groups_of(self._get_instance_data(), self._batch_size):
+            for (i,batch) in enumerate(lazy_groups_of(self._get_instance_data(), self._batch_size)):
+                print("i: ", i)
+                # if i!=5:
+                #     continue
                 for model_input_instance, result in zip(batch, self._predict_instances(batch)):
                     self._maybe_print_to_console_and_file(result, str(model_input_instance))
         else:

@@ -81,16 +81,30 @@ class STOGPredictor(Predictor):
     @overrides
     def dump_line(self, output):
         # return ' '.join(output['nodes']) + '\n'
-        pred_graph = AMRGraph.from_prediction(output)
-        amr = output['gold_amr']
-        gold_graph = amr.graph
-        amr.graph = pred_graph
+        #print("\nnodes: ", output['nodes'])
+        
+        try:
+            pred_graph = AMRGraph.from_prediction(output)
+            amr = output['gold_amr']
+            gold_graph = amr.graph
+            amr.graph = pred_graph
 
-        string_to_print = str(amr).replace(
-            "# ::save-date", "# ::tgt_ref {}\n# ::tgt_pred {}\n# ::save-date".format(
-                " ".join(output["nodes"]),
-                " ".join(gold_graph.get_tgt_tokens()
-                         )
+            string_to_print = str(amr).replace(
+                "# ::save-date", "# ::tgt_ref {}\n# ::tgt_pred {}\n# ::save-date".format(
+                    " ".join(output["nodes"]),
+                    " ".join(gold_graph.get_tgt_tokens()
+                             )
+                )
             )
-        )
+        except:
+            string_to_print ="" 
+            #print("Invalid!")
+            print("\nheads: ", output['heads'])
+            print("id: ", output['gold_amr'].id)
+            #print("corefs: ", output['corefs'])
+            #print("copy_indicators: ", output['copy_indicators'])
+        
+            pass
+
         return string_to_print + '\n\n'
+
