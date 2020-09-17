@@ -1,7 +1,7 @@
 from collections import defaultdict
 
 from stog.utils import logging
-
+from stog.data.vocabulary import DEFAULT_OOV_TOKEN
 
 logger = logging.init_logger()
 
@@ -36,9 +36,9 @@ class GraphRepair:
         nodes = [node for node in graph.get_nodes()]
         for node in nodes:
             for attr, value in node.attributes:
-                if value == '@@UNKNOWN@@' and attr != 'instance':
+                if value == DEFAULT_OOV_TOKEN and attr != 'instance':
                     graph.remove_node_attribute(node, attr, value)
-            if node.instance == '@@UNKNOWN@@':
+            if node.instance == DEFAULT_OOV_TOKEN:
                 if len(list(graph._G.edges(node))) == 0:
                     for source, target in list(graph._G.in_edges(node)):
                         graph.remove_edge(source, target)

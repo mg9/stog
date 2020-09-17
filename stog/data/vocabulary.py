@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 DEFAULT_NON_PADDED_NAMESPACES = ("*tags", "*labels")
 DEFAULT_PADDING_TOKEN = "<pad>" #"@@PADDING@@"
-DEFAULT_OOV_TOKEN =  "@@UNKNOWN@@"
+DEFAULT_OOV_TOKEN =  "<unk>"
 DEFAULT_EOS_TOKEN =  "</s>"
 
 NAMESPACE_PADDING_FILE = 'non_padded_namespaces.txt'

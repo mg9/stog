@@ -256,7 +256,9 @@ class Model(torch.nn.Module):
         # stored in our weights.  We don't need any pretrained weight file anymore, and we don't
         # want the code to look for it, so we remove it from the parameters here.
         remove_pretrained_embedding_params(model_params)
-        model = cls.from_params(vocab=vocab, params=model_params)
+        transformer_tokenizer = T5Tokenizer.from_pretrained(config['transformer_tokenizer'])
+
+        model = cls.from_params(vocab=vocab, params=model_params, transformer_tokenizer=transformer_tokenizer)
         model_state = torch.load(weights_file, map_location=device_mapping(-1))
         if not isinstance(model, torch.nn.DataParallel):
             model_state = {re.sub(r'^module\.', '', k):v for k, v in model_state.items()}

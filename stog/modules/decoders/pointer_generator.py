@@ -41,6 +41,11 @@ class PointerGenerator(torch.nn.Module):
             [batch_size, num_target_nodes, dynamic_vocab_size]
         :param invalid_indexes: indexes which are not considered in prediction.
         """
+        # print("source_attentions.shape: ", source_attentions.shape)
+        # print("source_attention_maps.shape: ", source_attention_maps.shape)
+        # print("target_attentions.shape: ", target_attentions.shape)
+        # print("target_attention_maps: ", target_attention_maps.shape)
+
         batch_size, num_target_nodes, _ = hiddens.size()
         source_dynamic_vocab_size = source_attention_maps.size(2)
         target_dynamic_vocab_size = target_attention_maps.size(2)
@@ -63,23 +68,18 @@ class PointerGenerator(torch.nn.Module):
 
         # [batch_size, num_target_nodes, num_source_nodes]
         scaled_source_attentions = torch.mul(source_attentions, p_copy_source.expand_as(source_attentions))
-        # [batch_size, num_target_nodes, dynamic_vocab_size]
-
-        # print("source_attention_maps.shape: ", source_attention_maps.shape)
         # print("scaled_source_attentions.shape: ", scaled_source_attentions.shape)
 
+        # [batch_size, num_target_nodes, dynamic_vocab_size]
         scaled_copy_source_probs = torch.bmm(scaled_source_attentions, source_attention_maps.float())
 
         # Probability distribution over the dynamic vocabulary.
         # [batch_size, num_target_nodes, num_target_nodes]
         # TODO: make sure for target_node_i, its attention to target_node_j >= target_node_i
         # should be zero.
-
      
         scaled_target_attentions = torch.mul(target_attentions, p_copy_target.expand_as(target_attentions))
         # [batch_size, num_target_nodes, dymanic_vocab_size]
-
-        # print("target_attention_maps: ", target_attention_maps)
         # print("scaled_target_attentions.shape: ", scaled_target_attentions.shape)
 
         scaled_copy_target_probs = torch.bmm(scaled_target_attentions, target_attention_maps.float())

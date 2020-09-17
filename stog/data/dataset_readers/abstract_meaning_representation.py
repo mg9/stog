@@ -10,7 +10,7 @@ from stog.data.dataset_readers.amr_parsing.io import AMRIO
 from stog.data.dataset_readers.amr_parsing.amr import AMRGraph
 from stog.utils.file import cached_path
 from stog.data.dataset_readers.dataset_reader import DatasetReader
-from stog.data.fields import TextField, SpanField, SequenceLabelField, ListField, MetadataField, Field, AdjacencyField, ArrayField
+from stog.data.fields import TextField, SpanField, SequenceLabelField, ListField, MetadataField, Field, AdjacencyField, ArrayField, LabelField
 from stog.data.instance import Instance
 from stog.data.token_indexers import TokenIndexer, SingleIdTokenIndexer
 from stog.data.tokenizers import Token
@@ -29,7 +29,7 @@ class AbstractMeaningRepresentationDatasetReader(DatasetReader):
     def __init__(self,
                  token_indexers: Dict[str, TokenIndexer] = None,
                  word_splitter = None,
-                 # t5_tokenizer = None,
+                 transformer_tokenizer = None,
                  lazy: bool = False,
                  skip_first_line: bool = True,
                  evaluation: bool = False
@@ -50,7 +50,7 @@ class AbstractMeaningRepresentationDatasetReader(DatasetReader):
         self._number_non_oov_pos_tags = 0
         self._number_pos_tags = 0
 
-        # self.t5_tokenizer =t5_tokenizer
+        self.transformer_tokenizer =transformer_tokenizer
 
     def report_coverage(self):
         if self._number_bert_ids != 0:
@@ -75,7 +75,7 @@ class AbstractMeaningRepresentationDatasetReader(DatasetReader):
         for i,amr in enumerate(AMRIO.read(file_path)):
             # if i>5:
             #     break
-            yield self.text_to_instance(amr)#, self.t5_tokenizer)
+            yield self.text_to_instance(amr)
         self.report_coverage()
 
     @overrides
@@ -83,17 +83,35 @@ class AbstractMeaningRepresentationDatasetReader(DatasetReader):
         # pylint: disable=arguments-differ
 
         fields: Dict[str, Field] = {}
-
         max_tgt_length = None if self._evaluation else 60
 
         list_data = amr.graph.get_list_data(
-            amr, START_SYMBOL, END_SYMBOL, self._word_splitter, max_tgt_length) # START_SYMBOL, t5_tokenizer,
+            amr, START_SYMBOL, END_SYMBOL, self._word_splitter, max_tgt_length, self.transformer_tokenizer) # START_SYMBOL, 
 
         # These four fields are used for seq2seq model and target side self copy
+        # fields["src_tokens"] = TextField(
+        #     tokens=[Token(x) for x in list_data["src_tokens"]],
+        #     token_indexers={k: v for k, v in self._token_indexers.items() if 'encoder' in k}
+        # )
+
+
         fields["src_tokens"] = TextField(
             tokens=[Token(x) for x in list_data["src_tokens"]],
             token_indexers={k: v for k, v in self._token_indexers.items() if 'encoder' in k}
         )
+
+        fields["src_tokens_transformer_tokenized"] = TextField(
+            tokens=[Token(x) for x in list_data["src_tokens_transformer_tokenized"]],
+            token_indexers={k: v for k, v in self._token_indexers.items() if 'transformer' in k}
+        )
+        
+        fields["src_ids"] = SequenceLabelField(
+            labels=list_data["src_ids"].tolist(),
+            sequence_field=fields["src_tokens_transformer_tokenized"],
+            label_namespace="src_t5_ids"
+        )
+        # print("fields['src_ids']:", fields['src_ids'])
+
 
         if list_data['src_token_ids'] is not None:
             fields['src_token_ids'] = ArrayField(list_data['src_token_ids'])
@@ -105,32 +123,34 @@ class AbstractMeaningRepresentationDatasetReader(DatasetReader):
             fields['src_token_subword_index'] = ArrayField(
                 list_data['src_token_subword_index'])
 
-        fields["src_must_copy_tags"] = SequenceLabelField(
-            labels=list_data["src_must_copy_tags"],
-            sequence_field=fields["src_tokens"],
-            label_namespace="must_copy_tags"
-        )
+        # fields["src_must_copy_tags"] = SequenceLabelField(
+        #     labels=list_data["src_must_copy_tags"],
+        #     sequence_field=fields["src_tokens"],
+        #     label_namespace="must_copy_tags"
+        # )
 
         fields["tgt_tokens"] = TextField(
             tokens=[Token(x) for x in list_data["tgt_tokens"]],
             token_indexers={k: v for k, v in self._token_indexers.items() if 'decoder' in k}
         )
+        # print("fields['tgt_tokens']:", fields['tgt_tokens'])
 
-        fields["src_pos_tags"] = SequenceLabelField(
-            labels=list_data["src_pos_tags"],
-            sequence_field=fields["src_tokens"],
-            label_namespace="pos_tags"
-        )
 
-        fields["tgt_pos_tags"] = SequenceLabelField(
-            labels=list_data["tgt_pos_tags"],
-            sequence_field=fields["tgt_tokens"],
-            label_namespace="pos_tags"
-        )
+        # fields["src_pos_tags"] = SequenceLabelField(
+        #     labels=list_data["src_pos_tags"],
+        #     sequence_field=fields["src_tokens"],
+        #     label_namespace="pos_tags"
+        # )
 
-        self._number_pos_tags += len(list_data['tgt_pos_tags'])
-        self._number_non_oov_pos_tags += len(
-            [tag for tag in list_data['tgt_pos_tags'] if tag != '@@UNKNOWN@@'])
+        # fields["tgt_pos_tags"] = SequenceLabelField(
+        #     labels=list_data["tgt_pos_tags"],
+        #     sequence_field=fields["tgt_tokens"],
+        #     label_namespace="pos_tags"
+        # )
+
+        # self._number_pos_tags += len(list_data['tgt_pos_tags'])
+        # self._number_non_oov_pos_tags += len(
+        #     [tag for tag in list_data['tgt_pos_tags'] if tag != '@@UNKNOWN@@'])
 
         fields["tgt_copy_indices"] = SequenceLabelField(
             labels=list_data["tgt_copy_indices"],
@@ -150,9 +170,6 @@ class AbstractMeaningRepresentationDatasetReader(DatasetReader):
             padding_value=0
         )
 
-        # print("HEY tgt_copy_map: ", list_data["tgt_copy_map"])
-        # print("HEY fields tgt_copy_map: ", fields["tgt_copy_map"])
-
         # These two fields for source copy
         fields["src_copy_indices"] = SequenceLabelField(
             labels=list_data["src_copy_indices"],
@@ -164,7 +181,7 @@ class AbstractMeaningRepresentationDatasetReader(DatasetReader):
             indices=list_data["src_copy_map"],
             sequence_field=TextField(
                 [
-                    Token(x) for x in list_data["src_copy_vocab"].get_special_tok_list() + list_data["src_tokens"]
+                    Token(x) for x in list_data["src_copy_vocab"].get_special_tok_list() + list_data["src_tokens_transformer_tokenized"]
                 ],
                 None
             ),
@@ -189,7 +206,7 @@ class AbstractMeaningRepresentationDatasetReader(DatasetReader):
         if self._evaluation:
             # Metadata fields, good for debugging
             fields["src_tokens_str"] = MetadataField(
-                list_data["src_tokens"]
+                list_data["src_tokens_transformer_tokenized"]
             )
 
             fields["tgt_tokens_str"] = MetadataField(
@@ -200,9 +217,9 @@ class AbstractMeaningRepresentationDatasetReader(DatasetReader):
                 list_data["src_copy_vocab"]
             )
 
-            fields["tag_lut"] = MetadataField(
-                dict(pos=list_data["pos_tag_lut"])
-            )
+            # fields["tag_lut"] = MetadataField(
+            #     dict(pos=list_data["pos_tag_lut"])
+            # )
 
             fields["source_copy_invalid_ids"] = MetadataField(
                 list_data['src_copy_invalid_ids']

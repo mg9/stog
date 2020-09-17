@@ -1,3 +1,5 @@
+import torch
+
 import re
 import json
 from collections import defaultdict, Counter
@@ -7,12 +9,10 @@ import networkx as nx
 
 from stog.data.vocabulary import DEFAULT_PADDING_TOKEN, DEFAULT_OOV_TOKEN
 from stog.data.dataset_readers.amr_parsing.graph_repair import GraphRepair
-from stog.utils.string import find_similar_token, is_abstract_token, is_english_punct
+from stog.utils.string import find_similar_token, is_abstract_token, is_english_punct, END_SYMBOL, T5_PREFIX
 from stog.utils import logging
 
-
 logger = logging.init_logger()
-
 
 # Disable inverting ':mod' relation.
 penman.AMRCodec._inversions.pop('domain')
@@ -24,24 +24,9 @@ amr_codec = penman.AMRCodec(indent=6)
 WORDSENSE_RE = re.compile(r'-\d\d$')
 QUOTED_RE = re.compile(r'^".*"$')
 
-
-
-# Huggingface
-from transformers import T5Tokenizer
-
-
 class AMR:
 
-    def __init__(self,
-                 id=None,
-                 sentence=None,
-                 graph=None,
-                 tokens=None,
-                 lemmas=None,
-                 pos_tags=None,
-                 ner_tags=None,
-                 abstract_map=None,
-                 misc=None):
+    def __init__(self, id=None, sentence=None, graph=None, tokens=None, lemmas=None, pos_tags=None, ner_tags=None, abstract_map=None, misc=None):
         self.id = id
         self.sentence = sentence
         self.graph = graph
@@ -51,6 +36,31 @@ class AMR:
         self.ner_tags = ner_tags
         self.abstract_map = abstract_map
         self.misc = misc
+
+    def __repr__(self):
+        fields = []
+        for k, v in dict(
+            id=self.id,
+            snt=self.sentence,
+            tokens=self.tokens,
+            lemmas=self.lemmas,
+            pos_tags=self.pos_tags,
+            ner_tags=self.ner_tags,
+            abstract_map=self.abstract_map,
+            misc=self.misc,
+            graph=self.graph
+        ).items():
+            if v is None:
+                continue
+            if k == 'misc':
+                fields += v
+            elif k == 'graph':
+                fields.append(str(v))
+            else:
+                if not isinstance(v, str):
+                    v = json.dumps(v)
+                fields.append('# ::{} {}'.format(k, v))
+        return '\n'.join(fields)
 
     def is_named_entity(self, index):
         return self.ner_tags[index] not in ('0', 'O')
@@ -91,34 +101,8 @@ class AMR:
     def remove_span(self, indexes):
         self.replace_span(indexes, [], [], [])
 
-    def __repr__(self):
-        fields = []
-        for k, v in dict(
-            id=self.id,
-            snt=self.sentence,
-            tokens=self.tokens,
-            lemmas=self.lemmas,
-            pos_tags=self.pos_tags,
-            ner_tags=self.ner_tags,
-            abstract_map=self.abstract_map,
-            misc=self.misc,
-            graph=self.graph
-        ).items():
-            if v is None:
-                continue
-            if k == 'misc':
-                fields += v
-            elif k == 'graph':
-                fields.append(str(v))
-            else:
-                if not isinstance(v, str):
-                    v = json.dumps(v)
-                fields.append('# ::{} {}'.format(k, v))
-        return '\n'.join(fields)
-
     def get_src_tokens(self):
         return self.lemmas if self.lemmas else self.sentence.split()
-
 
 class AMRNode:
 
@@ -136,17 +120,7 @@ class AMRNode:
             # self._sort_attributes()
         self._num_copies = 0
         self.copy_of = copy_of
-
-    def _sort_attributes(self):
-        def get_attr_priority(attr):
-            if attr in self.attribute_priority:
-                return self.attribute_priority.index(attr), attr
-            if not re.search(r'^(ARG|op|snt)', attr):
-                return len(self.attribute_priority), attr
-            else:
-                return len(self.attribute_priority) + 1, attr
-        self.attributes.sort(key=lambda x: get_attr_priority(x[0]))
-
+ 
     def __hash__(self):
         return hash(self.identifier)
 
@@ -170,6 +144,16 @@ class AMRNode:
                 continue
             ret += '\n\t:{} {}'.format(key, value)
         return ret
+
+    def _sort_attributes(self):
+        def get_attr_priority(attr):
+            if attr in self.attribute_priority:
+                return self.attribute_priority.index(attr), attr
+            if not re.search(r'^(ARG|op|snt)', attr):
+                return len(self.attribute_priority), attr
+            else:
+                return len(self.attribute_priority) + 1, attr
+        self.attributes.sort(key=lambda x: get_attr_priority(x[0]))
 
     @property
     def instance(self):
@@ -217,7 +201,6 @@ class AMRNode:
             if isinstance(v, str) and not re.search(r'-\d\d$', v):
                 yield k, v
 
-
 class AMRGraph(penman.Graph):
 
     edge_label_priority = (
@@ -242,7 +225,6 @@ class AMRGraph(penman.Graph):
         self._triples = penman.alphanum_order(self._triples)
         return amr_codec.encode(self)
      
-
     def _build_extras(self):
         G = nx.DiGraph()
 
@@ -390,12 +372,12 @@ class AMRGraph(penman.Graph):
                 t = penman.Triple(source=node.identifier, relation=attr, target=new)
             triples.append(t)
         if not found:
-            # print("self._triples: ", self._triples)
-            # print("node.identifier: ", node.identifier)
-            # print("attr: ", attr)
-            # print("old: ", old)
-            # pass
-            raise KeyError
+            print("self._triples: ", self._triples)
+            print("node.identifier: ", node.identifier)
+            print("attr: ", attr)
+            print("old: ", old)
+            pass
+            #raise KeyError
         self._triples = penman.alphanum_order(triples)
 
     def remove_node_attribute(self, node, attr, value):
@@ -502,9 +484,7 @@ class AMRGraph(penman.Graph):
 
         return tgt_token
 
-
-
-    def get_list_data(self, amr, bos=None, eos=None, bert_tokenizer=None, max_tgt_length=None): #bos=None , t5_tokenizer, 
+    def get_list_data(self, amr, bos=None, eos=None, bert_tokenizer=None, max_tgt_length=None, transformers_tokenizer=None): #bos=None , t5_tokenizer, 
         node_list = self.get_list_node()
 
         tgt_tokens = []
@@ -555,7 +535,7 @@ class AMRGraph(penman.Graph):
            tgt_tokens = [bos] + tgt_tokens
            copy_offset += 1
         if eos:
-            tgt_tokens = tgt_tokens + [eos] #+ [eos] #double eos to use correct tgtmaps
+            tgt_tokens = tgt_tokens + [eos] 
 
 
         head_indices[node_to_idx[self.variable_to_node[self.top]][0]] = 0
@@ -608,41 +588,63 @@ class AMRGraph(penman.Graph):
 
         # Source Copy
         src_tokens = self.get_src_tokens()
-        #src_tokens = ["summarize:"] + src_tokens + ["</s>"]
-        src_tokens = src_tokens 
+        src_tokens = [T5_PREFIX] + src_tokens + ["</s>"] #[END_SYMBOL]
+
+        # print("\n\n---")
+        # Convert srctokens to t5tokens
+        # print("src_tokens before: ", src_tokens)
+        src_sentence = " ".join(src_tokens).strip()
+        src_ids = transformers_tokenizer.encode(src_sentence, return_tensors='pt')[0]
+        _src_tokens = transformers_tokenizer.convert_ids_to_tokens(src_ids)
+        # print("src_tokens transformers_tokenized: ", src_tokens)
+        # print("src_ids: ", src_ids)
 
         src_token_ids = None
         src_token_subword_index = None
-        src_pos_tags = amr.pos_tags
-        src_pos_tags = src_pos_tags
+        # src_pos_tags = amr.pos_tags
+        # src_pos_tags = [DEFAULT_OOV_TOKEN] + src_pos_tags + [DEFAULT_OOV_TOKEN]
 
-        src_copy_vocab = SourceCopyVocabulary(src_tokens)
+        src_copy_vocab = SourceCopyVocabulary(_src_tokens)
         src_copy_indices = src_copy_vocab.index_sequence(tgt_tokens)
-        src_copy_map = src_copy_vocab.get_copy_map(src_tokens)
-        tgt_pos_tags, pos_tag_lut = add_source_side_tags_to_target_side(src_tokens, src_pos_tags)
 
-        if bert_tokenizer is not None:
-            src_token_ids, src_token_subword_index = bert_tokenizer.tokenize(src_tokens, True)
 
-        src_must_copy_tags = [1 if is_abstract_token(t) else 0 for t in src_tokens]
+        src_copy_map = src_copy_vocab.get_copy_map(_src_tokens)
+        # tgt_pos_tags, pos_tag_lut = add_source_side_tags_to_target_side(src_tokens, src_pos_tags)
+
+        # if bert_tokenizer is not None:
+        #     src_token_ids, src_token_subword_index = bert_tokenizer.tokenize(src_tokens, True)
+
+        # src_must_copy_tags = [1 if is_abstract_token(t) else 0 for t in src_tokens]
         src_copy_invalid_ids = set(src_copy_vocab.index_sequence(
             [t for t in src_tokens if is_english_punct(t)]))
 
+        # print("src_copy_indices: ", src_copy_indices)
+        # print("src_copy_map: ", src_copy_map)
+        # print("src_copy_invalid_ids: ", src_copy_invalid_ids)
+        # print("src_copy_vocab: ", src_copy_vocab)
+
+        # print("tgt_tokens: ", tgt_tokens)
+        # print("tgt_copy_indices: ", tgt_copy_indices)
+        # print("tgt_copy_map: ", tgt_copy_map)
+
+
         return {
             "tgt_tokens" : tgt_tokens,
-            "tgt_pos_tags": tgt_pos_tags,
+            # "tgt_pos_tags": tgt_pos_tags,
             "tgt_copy_indices" : tgt_copy_indices,
             "tgt_copy_map" : tgt_copy_map,
             "tgt_copy_mask" : tgt_copy_mask,
+            "src_ids" : src_ids,
+            "src_tokens_transformer_tokenized" : _src_tokens,
             "src_tokens" : src_tokens,
             "src_token_ids" : src_token_ids,
             "src_token_subword_index" : src_token_subword_index,
-            "src_must_copy_tags" : src_must_copy_tags,
-            "src_pos_tags": src_pos_tags,
+            # "src_must_copy_tags" : src_must_copy_tags,
+            # "src_pos_tags": src_pos_tags,
             "src_copy_vocab" : src_copy_vocab,
             "src_copy_indices" : src_copy_indices,
             "src_copy_map" : src_copy_map,
-            "pos_tag_lut": pos_tag_lut,
+            # "pos_tag_lut": pos_tag_lut,
             "head_tags" : head_tags,
             "head_indices" : head_indices,
             "src_copy_invalid_ids" : src_copy_invalid_ids
@@ -789,7 +791,6 @@ class AMRGraph(penman.Graph):
             graph._triples = [penman.Triple(*t) for t in triples]
             graph = cls(graph)
         return graph
-
 
 class SourceCopyVocabulary:
     def __init__(self, sentence, pad_token=DEFAULT_PADDING_TOKEN, unk_token=DEFAULT_OOV_TOKEN):

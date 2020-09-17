@@ -71,7 +71,7 @@ model:
 
   decoder_coref_embedding:
     num_embeddings: 500
-    embedding_dim: 50
+    embedding_dim: 150
     padding_index: 0
     dropout: 0.33
 
@@ -162,6 +162,7 @@ data:
   pretrain_char_emb:
   word_splitter: *word_splitter
 
+transformer_tokenizer: t5-vocab
 
 # Training parameters
 environment:
@@ -169,14 +170,14 @@ environment:
   seed: 1
   numpy_seed: 1
   torch_seed: 1
-  serialization_dir: &serialization_dir ckpt-amr-2.5
+  serialization_dir: &serialization_dir ckpt-amr-2.7
   file_friendly_logging: False
   gpu: True
   cuda_device: 0
 
 trainer:
   device:
-  no_grad: [t5.shared.weight]
+  no_grad: [] #[t5.shared.weight]
   optimizer_type: adam
   learning_rate: 0.001
   max_grad_norm: 5.0

@@ -54,22 +54,22 @@ class STOG(Model):
     def __init__(self,
                  vocab,
                  punctuation_ids,
-                 use_must_copy_embedding,
+                 # use_must_copy_embedding,
                  use_char_cnn,
-                 use_coverage,
-                 use_aux_encoder,
-                 use_bert,
+                 # use_coverage,
+                 # use_aux_encoder,
+                 # use_bert,
                  max_decode_length,
-                 # Encoder
-                 bert_encoder,
-                 encoder_token_embedding,
-                 encoder_pos_embedding,
-                 encoder_must_copy_embedding,
-                 encoder_char_embedding,
-                 encoder_char_cnn,
-                 encoder_embedding_dropout,
-                 encoder,
-                 encoder_output_dropout,
+                 # # Encoder
+                 # bert_encoder,
+                 # encoder_token_embedding,
+                 # encoder_pos_embedding,
+                 # encoder_must_copy_embedding,
+                 # encoder_char_embedding,
+                 # encoder_char_cnn,
+                 # encoder_embedding_dropout,
+                 # encoder,
+                 # encoder_output_dropout,
                  # Decoder
                  decoder_token_embedding,
                  decoder_pos_embedding,
@@ -77,13 +77,14 @@ class STOG(Model):
                  decoder_char_embedding,
                  decoder_char_cnn,
                  decoder_embedding_dropout,
-                 decoder,
-                 # Aux Encoder
-                 aux_encoder,
-                 aux_encoder_output_dropout,
+                 # decoder,
+                 # # Aux Encoder
+                 # aux_encoder,
+                 # aux_encoder_output_dropout,
                  # Transformers
                  transformers,
                  transformers_attention_layer,
+                 transformer_tokenizer,
                  # Generator
                  generator,
                  # Graph decoder
@@ -94,23 +95,23 @@ class STOG(Model):
 
         self.vocab = vocab
         self.punctuation_ids = punctuation_ids
-        self.use_must_copy_embedding = use_must_copy_embedding
+        # self.use_must_copy_embedding = use_must_copy_embedding
         self.use_char_cnn = use_char_cnn
-        self.use_coverage = use_coverage
-        self.use_aux_encoder = use_aux_encoder
-        self.use_bert = use_bert
+        # self.use_coverage = use_coverage
+        # self.use_aux_encoder = use_aux_encoder
+        # self.use_bert = use_bert
         self.max_decode_length = max_decode_length
 
-        self.bert_encoder = bert_encoder
+        # self.bert_encoder = bert_encoder
 
-        self.encoder_token_embedding = encoder_token_embedding
-        self.encoder_pos_embedding = encoder_pos_embedding
-        self.encoder_must_copy_embedding = encoder_must_copy_embedding
-        self.encoder_char_embedding = encoder_char_embedding
-        self.encoder_char_cnn = encoder_char_cnn
-        self.encoder_embedding_dropout = encoder_embedding_dropout
-        self.encoder = encoder
-        self.encoder_output_dropout = encoder_output_dropout
+        # self.encoder_token_embedding = encoder_token_embedding
+        # self.encoder_pos_embedding = encoder_pos_embedding
+        # self.encoder_must_copy_embedding = encoder_must_copy_embedding
+        # self.encoder_char_embedding = encoder_char_embedding
+        # self.encoder_char_cnn = encoder_char_cnn
+        # self.encoder_embedding_dropout = encoder_embedding_dropout
+        # self.encoder = encoder
+        # self.encoder_output_dropout = encoder_output_dropout
 
         self.decoder_token_embedding = decoder_token_embedding
         self.decoder_pos_embedding = decoder_pos_embedding
@@ -118,14 +119,14 @@ class STOG(Model):
         self.decoder_char_embedding = decoder_char_embedding
         self.decoder_char_cnn = decoder_char_cnn
         self.decoder_embedding_dropout = decoder_embedding_dropout
-        self.decoder = decoder
+        # self.decoder = decoder
 
-        self.aux_encoder = aux_encoder
-        self.aux_encoder_output_dropout = aux_encoder_output_dropout
+        # self.aux_encoder = aux_encoder
+        # self.aux_encoder_output_dropout = aux_encoder_output_dropout
 
         self.transformers = transformers
         self.transformers_attention_layer = transformers_attention_layer
-
+        self.transformer_tokenizer = transformer_tokenizer
 
         self.generator = generator
 
@@ -156,9 +157,9 @@ class STOG(Model):
 
     def mimick_test(self):
         word_splitter = None
-        if self.use_bert:
-            word_splitter = self.test_config.get('word_splitter', None)
-        dataset_reader = load_dataset_reader('AMR', word_splitter=word_splitter)
+        # if self.use_bert:
+        #     word_splitter = self.test_config.get('word_splitter', None)
+        dataset_reader = load_dataset_reader('AMR', word_splitter=word_splitter, transformer_tokenizer= self.transformer_tokenizer)
         dataset_reader.set_evaluation()
         predictor = Predictor.by_name('STOG')(self, dataset_reader)
         manager = _PredictManager(
@@ -219,6 +220,7 @@ class STOG(Model):
         print([(i, x) for i, x in enumerate(batch["tgt_copy_indices"][batch_idx].tolist())])
 
     def prepare_batch_input(self, batch):
+
         # [batch, num_tokens]
         bert_token_inputs = batch.get('src_token_ids', None)
         if bert_token_inputs is not None:
@@ -226,27 +228,29 @@ class STOG(Model):
         encoder_token_subword_index = batch.get('src_token_subword_index', None)
         if encoder_token_subword_index is not None:
             encoder_token_subword_index = encoder_token_subword_index.long()
-        encoder_token_inputs = batch['src_tokens']['encoder_tokens']
-        encoder_pos_tags = batch['src_pos_tags']
-        encoder_must_copy_tags = batch['src_must_copy_tags']
+        encoder_token_inputs =  batch['src_ids'] #batch['src_tokens']['encoder_tokens']
+        # encoder_pos_tags = batch['src_pos_tags']
+        # encoder_must_copy_tags = batch['src_must_copy_tags']
         # [batch, num_tokens, num_chars]
-        encoder_char_inputs = batch['src_tokens']['encoder_characters']
+        # encoder_char_inputs = batch['src_tokens']['encoder_characters']
         # [batch, num_tokens]
-        encoder_mask = get_text_field_mask(batch['src_tokens'])
+
+        # encoder_mask = get_text_field_mask(batch['src_ids'])
+        encoder_mask = (batch['src_ids'] != 0).long()
 
         encoder_inputs = dict(
             bert_token=bert_token_inputs,
             token_subword_index=encoder_token_subword_index,
             token=encoder_token_inputs,
-            pos_tag=encoder_pos_tags,
-            must_copy_tag=encoder_must_copy_tags,
-            char=encoder_char_inputs,
+            # pos_tag=encoder_pos_tags,
+            # must_copy_tag=encoder_must_copy_tags,
+            # char=encoder_char_inputs,
             mask=encoder_mask
         )
 
         # [batch, num_tokens]
         decoder_token_inputs = batch['tgt_tokens']['decoder_tokens'][:, :-1].contiguous()
-        decoder_pos_tags = batch['tgt_pos_tags'][:, :-1]
+        # decoder_pos_tags = batch['tgt_pos_tags'][:, :-1]
         # [batch, num_tokens, num_chars]
         decoder_char_inputs = batch['tgt_tokens']['decoder_characters'][:, :-1].contiguous()
         # TODO: The following change can be done in amr.py.
@@ -265,7 +269,7 @@ class STOG(Model):
 
         decoder_inputs = dict(
             token=decoder_token_inputs,
-            pos_tag=decoder_pos_tags,
+            # pos_tag=decoder_pos_tags,
             char=decoder_char_inputs,
             coref=decoder_coref_inputs
         )
@@ -278,6 +282,11 @@ class STOG(Model):
         coref_attention_maps = batch['tgt_copy_map'][:, 1:]  # exclude BOS
         # [batch, num_tgt_tokens, num_src_tokens + unk]
         copy_targets = batch["src_copy_indices"][:, 1:]
+
+        # print("copy_targets:", copy_targets)
+        # print("coref_targets:", coref_targets)
+        # print("vocab_targets:", vocab_targets)
+        
         # [batch, num_src_tokens + unk, src_dynamic_vocab_size]
         # Exclude the last pad.
         copy_attention_maps = batch['src_copy_map'][:, 1:-1]
@@ -322,18 +331,18 @@ class STOG(Model):
                                 encoder_inputs['token_subword_index'],
                                 encoder_inputs['token'],
                                 decoder_inputs['token'],
-                                encoder_inputs['pos_tag'],
-                                encoder_inputs['must_copy_tag'],
-                                encoder_inputs['char'],
+                                # encoder_inputs['pos_tag'],
+                                # encoder_inputs['must_copy_tag'],
+                                # encoder_inputs['char'],
                                 encoder_inputs['mask'],
                                 parser_inputs['mask'],
-                                decoder_inputs['pos_tag'],
+                                # decoder_inputs['pos_tag'],
                                 decoder_inputs['char'],
                                 decoder_inputs['coref'],
                             )
 
             generator_output = self.generator(
-                enc_dec_outputs['memory_bank'],
+                enc_dec_outputs['decoder_hiddens'],
                 enc_dec_outputs['copy_attentions'],
                 generator_inputs['copy_attention_maps'],
                 enc_dec_outputs['coref_attentions'],
@@ -353,7 +362,7 @@ class STOG(Model):
             )
 
             graph_decoder_outputs = self.graph_decode(
-                enc_dec_outputs['memory_bank'],
+                enc_dec_outputs['decoder_hiddens'],
                 parser_inputs['edge_heads'],
                 parser_inputs['edge_labels'],
                 parser_inputs['corefs'],
@@ -374,7 +383,7 @@ class STOG(Model):
 
             invalid_indexes = dict(
                 source_copy=batch.get('source_copy_invalid_ids', None),
-                vocab=[set(self.punctuation_ids) for _ in range(len(batch['tag_lut']))]
+                vocab= None #[set(self.punctuation_ids) for _ in range(len(batch['tag_lut']))]
             )
 
             return dict(
@@ -382,68 +391,143 @@ class STOG(Model):
                 encoder_mask=encoder_inputs['mask'],
                 copy_attention_maps=generator_inputs['copy_attention_maps'],
                 copy_vocabs=batch['src_copy_vocab'],
-                tag_luts=batch['tag_lut'],
-                invalid_indexes=invalid_indexes,
-                pos_tags=encoder_inputs['pos_tag'],
-                must_copy_tags=encoder_inputs['must_copy_tag'],
-                chars=encoder_inputs['char']
+                # tag_luts=batch['tag_lut'],
+                invalid_indexes=invalid_indexes
+                # pos_tags=encoder_inputs['pos_tag'],
+                # must_copy_tags=encoder_inputs['must_copy_tag'],
+                # chars=encoder_inputs['char']
             )
 
-    def encode_decode(self, bert_tokens, token_subword_index, src_tokens, tgt_tokens, pos_tags, must_copy_tags, chars, mask, tgt_mask, tgt_pos_tags, tgt_chars,  tgt_corefs):
-        # [batch, num_tokens, embedding_size]
+    # def encode_decode(self, bert_tokens, token_subword_index, src_tokens, tgt_tokens, pos_tags, must_copy_tags, chars, mask, tgt_mask, tgt_pos_tags, tgt_chars,  tgt_corefs):
+    def encode_decode(self, bert_tokens, token_subword_index, src_tokens, tgt_tokens,  mask, tgt_mask,  tgt_chars,  tgt_corefs):
+       
+        ### Disable paper raw embeddings for now
+        # # [batch, num_tokens, embedding_size]
+        # encoder_inputs = []
+        # if self.use_bert:
+        #     bert_mask = bert_tokens.ne(0)
+        #     bert_embeddings, _ = self.bert_encoder(
+        #         bert_tokens,
+        #         attention_mask=bert_mask,
+        #         output_all_encoded_layers=False,
+        #         token_subword_index=token_subword_index
+        #     )
+        #     if token_subword_index is None:
+        #         bert_embeddings = bert_embeddings[:, 1:-1]
+        #     encoder_inputs += [bert_embeddings]
+
+        # token_embeddings = self.encoder_token_embedding(src_tokens)
+        # pos_tag_embeddings = self.encoder_pos_embedding(pos_tags)
+        # encoder_inputs += [token_embeddings, pos_tag_embeddings]
+
+        # if self.use_must_copy_embedding:
+        #     must_copy_tag_embeddings = self.encoder_must_copy_embedding(must_copy_tags)
+        #     encoder_inputs += [must_copy_tag_embeddings]
+
+        # if self.use_char_cnn:
+        #     char_cnn_output = self._get_encoder_char_cnn_output(chars)
+        #     encoder_inputs += [char_cnn_output]
+
+        # encoder_inputs = torch.cat(encoder_inputs, 2)
+        # encoder_inputs = self.encoder_embedding_dropout(encoder_inputs)
+
+
+        ## Use transformer input (tokenization & embeddings)
+
+        # print("src_tokens: ", src_tokens)
+        # print("tgt_tokens: ", tgt_tokens)
+
+        # B,Tx = src_tokens.shape
+        # B,Ty = tgt_tokens.shape
+
+        # # Convert srctokens to words
+        # src_sequences = []
+        # for b in range(B):
+        #     sequence = []
+        #     for t in range(Tx):
+        #         token = self.vocab.get_token_from_index(src_tokens[b,t].item(), "encoder_token_ids")
+        #         sequence.append(token) 
+        #         if token == END_SYMBOL:
+        #             break
+        #     src_sequences.append(sequence)
+        # print("src_sequences:", src_sequences)
+
+        # #Convert tgttokens to words
+        # tgt_sequences = []
+        # for b in range(B):
+        #     sequence = []
+        #     for t in range(Ty):
+        #         token = self.vocab.get_token_from_index(tgt_tokens[b,t].item(), "decoder_token_ids")
+        #         sequence.append(token) 
+        #         if token == END_SYMBOL:
+        #             break
+        #     if sequence[-1] != END_SYMBOL: # TODO: check this part! Why no </s> at the last sequence
+        #         sequence.append(END_SYMBOL) 
+        #     tgt_sequences.append(sequence)
+        # print("tgt_sequences: ", tgt_sequences)
+
+        # src_train = [" ".join(text).strip() for text in src_sequences]
+        # # tgt_train = [" ".join(text).strip() for text in tgt_sequences]
+     
+        # ## tokenize src 
+        # src_train_dict = self.transformer_tokenizer.batch_encode_plus(src_train, pad_to_max_length=True, return_tensors="pt")
+       
+        # # ## tokenize tgt 
+        # # tgt_train_dict = self.transformer_tokenizer.batch_encode_plus(tgt_train, pad_to_max_length=True, return_tensors="pt")
+   
+        # ## obtain input tensors
+        # input_ids = src_train_dict["input_ids"].cuda()
+        # # output_ids = tgt_train_dict["input_ids"].cuda()
         
-        encoder_inputs = []
-        if self.use_bert:
-            bert_mask = bert_tokens.ne(0)
-            bert_embeddings, _ = self.bert_encoder(
-                bert_tokens,
-                attention_mask=bert_mask,
-                output_all_encoded_layers=False,
-                token_subword_index=token_subword_index
-            )
-            if token_subword_index is None:
-                bert_embeddings = bert_embeddings[:, 1:-1]
-            encoder_inputs += [bert_embeddings]
+        # ## obtain masks for paddings
+        # src_attention_mask = src_train_dict["attention_mask"].cuda()
+        # # tgt_attention_mask = tgt_train_dict["attention_mask"].cuda()
+        
 
-        token_embeddings = self.encoder_token_embedding(src_tokens)
-        pos_tag_embeddings = self.encoder_pos_embedding(pos_tags)
-        encoder_inputs += [token_embeddings, pos_tag_embeddings]
+        # print("input_ids: ", input_ids)
+        # # print("output_ids: ", output_ids)
+        # print("src_attention_mask: ", src_attention_mask)
+        # # print("tgt_attention_mask: ", tgt_attention_mask)
 
-        if self.use_must_copy_embedding:
-            must_copy_tag_embeddings = self.encoder_must_copy_embedding(must_copy_tags)
-            encoder_inputs += [must_copy_tag_embeddings]
-
-        if self.use_char_cnn:
-            char_cnn_output = self._get_encoder_char_cnn_output(chars)
-            encoder_inputs += [char_cnn_output]
-
-        encoder_inputs = torch.cat(encoder_inputs, 2)
-        encoder_inputs = self.encoder_embedding_dropout(encoder_inputs)
-
+        ## Disable paper raw embeddings for now
         ## Decoder inputs
         # [batch, num_tokens, embedding_size]
+        
         token_embeddings = self.decoder_token_embedding(tgt_tokens)
-        pos_tag_embeddings = self.decoder_pos_embedding(tgt_pos_tags)
+        # pos_tag_embeddings = self.decoder_pos_embedding(tgt_pos_tags)
         coref_embeddings = self.decoder_coref_embedding(tgt_corefs)
         if self.use_char_cnn:
             char_cnn_output = self._get_decoder_char_cnn_output(tgt_chars)
+            # decoder_inputs = torch.cat([
+            #     token_embeddings, pos_tag_embeddings, coref_embeddings, char_cnn_output], 2)
             decoder_inputs = torch.cat([
-                token_embeddings, pos_tag_embeddings, coref_embeddings, char_cnn_output], 2)
+                token_embeddings, coref_embeddings, char_cnn_output], 2)
         else:
+            # decoder_inputs = torch.cat([
+            #     token_embeddings, pos_tag_embeddings, coref_embeddings], 2)
+
             decoder_inputs = torch.cat([
-                token_embeddings, pos_tag_embeddings, coref_embeddings], 2)
+                 token_embeddings,  coref_embeddings], 2)
         decoder_inputs = self.decoder_embedding_dropout(decoder_inputs)
 
-        outputs = self.transformers(inputs_embeds=encoder_inputs, decoder_inputs_embeds= decoder_inputs, attention_mask=mask, decoder_attention_mask=tgt_mask, output_attentions=True, output_hidden_states=True, return_dict=True)
+        ### Disable giving our own embeds for now
+        # outputs = self.transformers(inputs_embeds=encoder_inputs, decoder_inputs_embeds= decoder_inputs, attention_mask=mask, decoder_attention_mask=tgt_mask, output_attentions=True, output_hidden_states=True, return_dict=True)
 
-        memory_bank = outputs.encoder_last_hidden_state
+        outputs = self.transformers(input_ids=src_tokens, decoder_inputs_embeds=decoder_inputs, attention_mask=mask, decoder_attention_mask=tgt_mask, output_attentions=True, output_hidden_states=True, return_dict=True)
+        encoder_hiddens = outputs.encoder_last_hidden_state
         decoder_hiddens = outputs.last_hidden_state
-        attn_h, copy_attentions, coverage = self.transformers_attention_layer(decoder_hiddens, memory_bank, mask)
-        coref_attentions = outputs.decoder_attentions[2] #5 for pretrained t5-small 
+
+        attn_h, copy_attentions, coverage = self.transformers_attention_layer(decoder_hiddens, encoder_hiddens, mask)
+        coref_attentions = outputs.decoder_attentions[5] 
         coref_attentions = torch.sum(coref_attentions, dim=1)        # B,Ty,Ty
         
+        # print("encoder_hiddens: ",  encoder_hiddens.shape)
+        # print("decoder_hiddens: ",  decoder_hiddens.shape)
+        # print("copy_attentions: ",  copy_attentions.shape)
+        # print("coref_attentions: ", coref_attentions.shape)
+
         return dict(
-            memory_bank= decoder_hiddens,                                  # torch.Size([B, Ty, H])
+            decoder_hiddens= decoder_hiddens,                              # torch.Size([B, Ty, H])
             coref_attentions=coref_attentions,                             # torch.Size([B, Ty, Ty])
             copy_attentions=copy_attentions                                # torch.Size([B, Ty, Tx])
         )
@@ -451,8 +535,8 @@ class STOG(Model):
     def graph_decode(self, memory_bank, edge_heads, edge_labels, corefs, mask, aux_memory_bank):
         # Exclude the BOS symbol.
         memory_bank = memory_bank[:, 1:]
-        if self.use_aux_encoder:
-            memory_bank = torch.cat([memory_bank, aux_memory_bank], 2)
+        # if self.use_aux_encoder:
+        #     memory_bank = torch.cat([memory_bank, aux_memory_bank], 2)
         corefs = corefs[:, 1:]
         mask = mask[:, 1:]
         return self.graph_decoder(memory_bank, edge_heads, edge_labels, corefs, mask)
@@ -478,37 +562,35 @@ class STOG(Model):
     def decode(self, input_dict):
 
         src_tokens = input_dict['src_tokens']
-
-        # print("src_tokens: ", src_tokens[3,:])
         mask = input_dict['encoder_mask']
         copy_attention_maps = input_dict['copy_attention_maps']
         copy_vocabs = input_dict['copy_vocabs']
-        tag_luts = input_dict['tag_luts']
+        # tag_luts = input_dict['tag_luts']
         invalid_indexes = input_dict['invalid_indexes']
        
-        pos_tags=input_dict['pos_tags']
-        must_copy_tags=input_dict['must_copy_tags']
-        chars=input_dict['chars']
+        # pos_tags=input_dict['pos_tags']
+        # must_copy_tags=input_dict['must_copy_tags']
+        # chars=input_dict['chars']
+        
+        ### Disable giving our own embeds for now
+        # encoder_inputs = []
+        # token_embeddings = self.encoder_token_embedding(src_tokens)
+        # pos_tag_embeddings = self.encoder_pos_embedding(pos_tags)
+        # encoder_inputs += [token_embeddings, pos_tag_embeddings]
 
-        encoder_inputs = []
-        token_embeddings = self.encoder_token_embedding(src_tokens)
-        pos_tag_embeddings = self.encoder_pos_embedding(pos_tags)
-        encoder_inputs += [token_embeddings, pos_tag_embeddings]
+        # if self.use_must_copy_embedding:
+        #     must_copy_tag_embeddings = self.encoder_must_copy_embedding(must_copy_tags)
+        #     encoder_inputs += [must_copy_tag_embeddings]
 
-        if self.use_must_copy_embedding:
-            must_copy_tag_embeddings = self.encoder_must_copy_embedding(must_copy_tags)
-            encoder_inputs += [must_copy_tag_embeddings]
+        # if self.use_char_cnn:
+        #     char_cnn_output = self._get_encoder_char_cnn_output(chars)
+        #     encoder_inputs += [char_cnn_output]
 
-        if self.use_char_cnn:
-            char_cnn_output = self._get_encoder_char_cnn_output(chars)
-            encoder_inputs += [char_cnn_output]
-
-        encoder_inputs = torch.cat(encoder_inputs, 2)
-        #encoder_inputs = self.encoder_embedding_dropout(encoder_inputs) # dropout at predict ?
-
-        generator_outputs = self.decode_with_pointer_generator(encoder_inputs, mask, copy_attention_maps, copy_vocabs, tag_luts, invalid_indexes) #memory_bank
- 
-        # print("nodes: ", generator_outputs['predictions'][3,:])
+        # encoder_inputs = torch.cat(encoder_inputs, 2)
+        # encoder_inputs = self.encoder_embedding_dropout(encoder_inputs) # dropout at predict ?
+        # generator_outputs = self.decode_with_pointer_generator(encoder_inputs, mask, copy_attention_maps, copy_vocabs, tag_luts, invalid_indexes)
+        
+        generator_outputs = self.decode_with_pointer_generator(src_tokens, mask, copy_attention_maps, copy_vocabs, invalid_indexes)
 
         parser_outputs = self.decode_with_graph_parser(
             generator_outputs['decoder_rnn_memory_bank'],
@@ -523,16 +605,18 @@ class STOG(Model):
             corefs=generator_outputs['coref_indexes']
         )
 
-    def decode_with_pointer_generator(self, encoder_inputs, mask, copy_attention_maps, copy_vocabs, tag_luts, invalid_indexes):
+    # def decode_with_pointer_generator(self, encoder_inputs, mask, copy_attention_maps, copy_vocabs, tag_luts, invalid_indexes):
+    def decode_with_pointer_generator(self, encoder_inputs, mask, copy_attention_maps, copy_vocabs, invalid_indexes):
+
         # [batch_size, 1]
         batch_size = encoder_inputs.size(0)
 
         tokens = torch.ones(batch_size, 1) * self.vocab.get_token_index(
             START_SYMBOL, "decoder_token_ids")
-        pos_tags = torch.ones(batch_size, 1) * self.vocab.get_token_index(
-            DEFAULT_OOV_TOKEN, "pos_tags")
+        # pos_tags = torch.ones(batch_size, 1) * self.vocab.get_token_index(
+        #     DEFAULT_OOV_TOKEN, "pos_tags")
         tokens = tokens.type_as(mask).long()
-        pos_tags = pos_tags.type_as(tokens)
+        # pos_tags = pos_tags.type_as(tokens)
         corefs = torch.zeros(batch_size, 1).type_as(mask).long()
 
         decoder_input_history = []
@@ -560,12 +644,11 @@ class STOG(Model):
 
         target_copy_attentions = []
 
-
         for step_i in range(self.max_decode_length):
             # print("\nstep_i: ", step_i)
             # 1. Get the decoder inputs.
             token_embeddings = self.decoder_token_embedding(tokens)
-            pos_tag_embeddings = self.decoder_pos_embedding(pos_tags)
+            # pos_tag_embeddings = self.decoder_pos_embedding(pos_tags)
             coref_embeddings = self.decoder_coref_embedding(corefs)
 
             if self.use_char_cnn:
@@ -578,19 +661,24 @@ class STOG(Model):
                 )
 
                 char_cnn_output = self._get_decoder_char_cnn_output(chars)
-                decoder_inputs = torch.cat(
-                    [token_embeddings, pos_tag_embeddings,
-                     coref_embeddings, char_cnn_output], 2)
-            else:
-                decoder_inputs = torch.cat(
-                    [token_embeddings, pos_tag_embeddings, coref_embeddings], 2)
-            
+                # decoder_inputs = torch.cat(
+                #     [token_embeddings, pos_tag_embeddings,
+                #      coref_embeddings, char_cnn_output], 2)
 
-            outputs = self.transformers(inputs_embeds=encoder_inputs, attention_mask=mask, decoder_inputs_embeds=decoder_inputs, output_attentions=True, output_hidden_states=True, return_dict=True)
+                decoder_inputs = torch.cat(
+                    [token_embeddings, coref_embeddings, char_cnn_output], 2)
+
+            else:
+                # decoder_inputs = torch.cat(
+                #     [token_embeddings, pos_tag_embeddings, coref_embeddings], 2)
+                decoder_inputs = torch.cat(
+                     [token_embeddings,  coref_embeddings], 2)
+
+            outputs = self.transformers(input_ids=encoder_inputs, attention_mask=mask, decoder_inputs_embeds=decoder_inputs, output_attentions=True, output_hidden_states=True, return_dict=True)
             memory_bank = outputs.encoder_last_hidden_state
             decoder_hiddens = outputs.last_hidden_state
             attn_h, _copy_attentions, coverage = self.transformers_attention_layer(decoder_hiddens, memory_bank, mask)
-            _coref_attentions = outputs.decoder_attentions[2] #5 for pretrained t5-small 
+            _coref_attentions = outputs.decoder_attentions[5] #5 for pretrained t5-small 
             _coref_attentions = torch.sum(_coref_attentions, dim=1)        # B,Ty,Ty
 
 
@@ -616,7 +704,8 @@ class STOG(Model):
             _predictions = generator_output['predictions']
 
             # 4. Update maps and get the next token input.
-            _tokens, _predictions, _pos_tags, _corefs, _mask = self._update_maps_and_get_next_input(
+            # _tokens, _predictions, _pos_tags, _corefs, _mask = self._update_maps_and_get_next_input(
+            _tokens, _predictions,  _corefs, _mask = self._update_maps_and_get_next_input(
                 step_i,
                 generator_output['predictions'].squeeze(1),
                 generator_output['source_dynamic_vocab_size'],
@@ -624,12 +713,12 @@ class STOG(Model):
                 coref_vocab_maps,
                 copy_vocabs,
                 decoder_mask,
-                tag_luts,
+                # tag_luts,
                 invalid_indexes
             )
 
             tokens = torch.cat([tokens,_tokens],1)
-            pos_tags = torch.cat([pos_tags,_pos_tags],1)
+            # pos_tags = torch.cat([pos_tags,_pos_tags],1)
             corefs = torch.cat([corefs,_corefs],1)
             
             # print("_tokens: ", _tokens)
@@ -652,9 +741,9 @@ class STOG(Model):
 
         # 6. Do the following chunking for the graph decoding input.
         # Exclude the hidden state for BOS.
-        #decoder_input_history = torch.cat(decoder_input_history[1:], dim=1)
+        # decoder_input_history = torch.cat(decoder_input_history[1:], dim=1)
         decoder_outputs = torch.cat(decoder_outputs[1:], dim=1)
-        #rnn_outputs = torch.cat(rnn_outputs[1:], dim=1)
+        # rnn_outputs = torch.cat(rnn_outputs[1:], dim=1)
         # Exclude coref/mask for EOS.
         # TODO: Answer "What if the last one is not EOS?"
         predictions = torch.cat(predictions[:-1], dim=1)
@@ -667,7 +756,7 @@ class STOG(Model):
             coref_indexes=coref_indexes,
             decoder_mask=decoder_mask,
             # [batch_size, max_decode_length, hidden_size]
-            #decoder_inputs=decoder_input_history,
+            # decoder_inputs=decoder_input_history,
             decoder_memory_bank=decoder_outputs,
             decoder_rnn_memory_bank=decoder_outputs, #rnn_outputs,
             # [batch_size, max_decode_length, encoder_length]
@@ -675,7 +764,9 @@ class STOG(Model):
             coref_attentions=coref_attentions
         )
 
-    def _update_maps_and_get_next_input(self, step, predictions, copy_vocab_size, coref_attention_maps, coref_vocab_maps, copy_vocabs, masks, tag_luts, invalid_indexes):
+    # def _update_maps_and_get_next_input(self, step, predictions, copy_vocab_size, coref_attention_maps, coref_vocab_maps, copy_vocabs, masks, tag_luts, invalid_indexes):
+    def _update_maps_and_get_next_input(self, step, predictions, copy_vocab_size, coref_attention_maps, coref_vocab_maps, copy_vocabs, masks,  invalid_indexes):
+
         """Dynamically update/build the maps needed for copying.
 
         :param step: the decoding step, int.
@@ -717,26 +808,26 @@ class STOG(Model):
 
         # If a token is copied from the source side, we look up its index in the gen vocab.
         copy_predictions = (predictions - vocab_size) * copy_mask.long()
-        pos_tags = torch.full_like(predictions, self.vocab.get_token_index(DEFAULT_OOV_TOKEN, 'pos_tags'))
+        # pos_tags = torch.full_like(predictions, self.vocab.get_token_index(DEFAULT_OOV_TOKEN, 'pos_tags'))
         for i, index in enumerate(copy_predictions.tolist()):
             copied_token = copy_vocabs[i].get_token_from_idx(index)
-            if index != 0:
-                pos_tags[i] = self.vocab.get_token_index(
-                    tag_luts[i]['pos'][copied_token], 'pos_tags')
-                if False: # is_abstract_token(copied_token):
-                    invalid_indexes['source_copy'][i].add(index)
+            # if index != 0:
+            #     pos_tags[i] = self.vocab.get_token_index(
+            #         tag_luts[i]['pos'][copied_token], 'pos_tags')
+            #     if False: # is_abstract_token(copied_token):
+            #         invalid_indexes['source_copy'][i].add(index)
             copy_predictions[i] = self.vocab.get_token_index(copied_token, 'decoder_token_ids')
 
         for i, index in enumerate(
                 (predictions * gen_mask.long() + coref_predictions * coref_mask.long()).tolist()):
             if index != 0:
                 token = self.vocab.get_token_from_index(index, 'decoder_token_ids')
-                src_token = find_similar_token(token, list(tag_luts[i]['pos'].keys()))
-                if src_token is not None:
-                    pos_tags[i] = self.vocab.get_token_index(
-                        tag_luts[i]['pos'][src_token], 'pos_tag')
-                if False: # is_abstract_token(token):
-                    invalid_indexes['vocab'][i].add(index)
+                # src_token = find_similar_token(token, list(tag_luts[i]['pos'].keys()))
+                # if src_token is not None:
+                #     pos_tags[i] = self.vocab.get_token_index(
+                #         tag_luts[i]['pos'][src_token], 'pos_tag')
+                # if False: # is_abstract_token(token):
+                #     invalid_indexes['vocab'][i].add(index)
 
         next_input = coref_predictions * coref_mask.long() + \
                      copy_predictions * copy_mask.long() + \
@@ -759,7 +850,7 @@ class STOG(Model):
         
         return (next_input.unsqueeze(1),
                 coref_resolved_preds.unsqueeze(1),
-                pos_tags.unsqueeze(1),
+                # pos_tags.unsqueeze(1),
                 coref_index.unsqueeze(1),
                 mask.unsqueeze(1))
 
@@ -773,11 +864,6 @@ class STOG(Model):
             edge_heads: [batch_size, node_length]
             edge_labels: [batch_size, node_length]
         """
-
-        # print("corefs: ", corefs[20,:])
-        # print("mask: ", mask[20,:])
-        # print("memory_bank: ", memory_bank.shape)
-
         memory_bank, _, _, corefs, mask = self.graph_decoder._add_head_sentinel(
             memory_bank, None, None, corefs, mask)
         (edge_node_h, edge_node_m), (edge_label_h, edge_label_m) = self.graph_decoder.encode(memory_bank)
@@ -791,52 +877,55 @@ class STOG(Model):
         )
 
     @classmethod
-    def from_params(cls, vocab, params):
+    def from_params(cls, vocab, params, transformer_tokenizer):
 
         logger.info('Building the STOG Model...')
 
-        # Encoder
-        encoder_input_size = 0
-        bert_encoder = None
-        if params.get('use_bert', False):
-            bert_encoder = Seq2SeqBertEncoder.from_pretrained(params['bert']['pretrained_model_dir'])
-            encoder_input_size += params['bert']['hidden_size']
-            for p in bert_encoder.parameters():
-                p.requires_grad = False
+        ### Disable paper encoder for now
+        # # Encoder
+        # encoder_input_size = 0
+        # bert_encoder = None
+        # if params.get('use_bert', False):
+        #     bert_encoder = Seq2SeqBertEncoder.from_pretrained(params['bert']['pretrained_model_dir'])
+        #     encoder_input_size += params['bert']['hidden_size']
+        #     for p in bert_encoder.parameters():
+        #         p.requires_grad = False
 
-        encoder_token_embedding = Embedding.from_params(vocab, params['encoder_token_embedding'])
-        encoder_input_size += params['encoder_token_embedding']['embedding_dim']
-        encoder_pos_embedding = Embedding.from_params(vocab, params['encoder_pos_embedding'])
-        encoder_input_size += params['encoder_pos_embedding']['embedding_dim']
+        # encoder_token_embedding = Embedding.from_params(vocab, params['encoder_token_embedding'])
+        # encoder_input_size += params['encoder_token_embedding']['embedding_dim']
+        # encoder_pos_embedding = Embedding.from_params(vocab, params['encoder_pos_embedding'])
+        # encoder_input_size += params['encoder_pos_embedding']['embedding_dim']
 
-        encoder_must_copy_embedding = None
-        if params.get('use_must_copy_embedding', False):
-            encoder_must_copy_embedding = Embedding.from_params(
-            vocab, params['encoder_must_copy_embedding'])
-            encoder_input_size += params['encoder_must_copy_embedding']['embedding_dim']
+        # encoder_must_copy_embedding = None
+        # if params.get('use_must_copy_embedding', False):
+        #     encoder_must_copy_embedding = Embedding.from_params(
+        #     vocab, params['encoder_must_copy_embedding'])
+        #     encoder_input_size += params['encoder_must_copy_embedding']['embedding_dim']
 
-        if params['use_char_cnn']:
-            encoder_char_embedding = Embedding.from_params(vocab, params['encoder_char_embedding'])
-            encoder_char_cnn = CnnEncoder(
-                embedding_dim=params['encoder_char_cnn']['embedding_dim'],
-                num_filters=params['encoder_char_cnn']['num_filters'],
-                ngram_filter_sizes=params['encoder_char_cnn']['ngram_filter_sizes'],
-                conv_layer_activation=torch.tanh
-            )
-            encoder_input_size += params['encoder_char_cnn']['num_filters']
-        else:
-            encoder_char_embedding = None
-            encoder_char_cnn = None
+        # if params['use_char_cnn']:
+        #     encoder_char_embedding = Embedding.from_params(vocab, params['encoder_char_embedding'])
+        #     encoder_char_cnn = CnnEncoder(
+        #         embedding_dim=params['encoder_char_cnn']['embedding_dim'],
+        #         num_filters=params['encoder_char_cnn']['num_filters'],
+        #         ngram_filter_sizes=params['encoder_char_cnn']['ngram_filter_sizes'],
+        #         conv_layer_activation=torch.tanh
+        #     )
+        #     encoder_input_size += params['encoder_char_cnn']['num_filters']
+        # else:
+        #     encoder_char_embedding = None
+        #     encoder_char_cnn = None
 
-        encoder_embedding_dropout = InputVariationalDropout(p=params['encoder_token_embedding']['dropout'])
+        # encoder_embedding_dropout = InputVariationalDropout(p=params['encoder_token_embedding']['dropout'])
 
-        params['encoder']['input_size'] = encoder_input_size
-        encoder = PytorchSeq2SeqWrapper(
-            module=StackedBidirectionalLstm.from_params(params['encoder']),
-            stateful=True
-        )
-        encoder_output_dropout = InputVariationalDropout(p=params['encoder']['dropout'])
+        # params['encoder']['input_size'] = encoder_input_size
+        # encoder = PytorchSeq2SeqWrapper(
+        #     module=StackedBidirectionalLstm.from_params(params['encoder']),
+        #     stateful=True
+        # )
+        # encoder_output_dropout = InputVariationalDropout(p=params['encoder']['dropout'])
 
+
+        ### Disable paper decoder for now
         # Decoder
         decoder_input_size = params['decoder']['hidden_size']
         decoder_input_size += params['decoder_token_embedding']['embedding_dim']
@@ -860,6 +949,56 @@ class STOG(Model):
 
         decoder_embedding_dropout = InputVariationalDropout(p=params['decoder_token_embedding']['dropout'])
 
+        # # Coref attention
+        # if params['coref_attention']['attention_function'] == 'mlp':
+        #     coref_attention = MLPAttention(
+        #         decoder_hidden_size=params['decoder']['hidden_size'],
+        #         encoder_hidden_size=params['decoder']['hidden_size'],
+        #         attention_hidden_size=params['decoder']['hidden_size'],
+        #         coverage=params['coref_attention'].get('coverage', False),
+        #         use_concat=params['coref_attention'].get('use_concat', False)
+        #     )
+        # elif params['coref_attention']['attention_function'] == 'biaffine':
+        #     coref_attention = BiaffineAttention(
+        #         input_size_decoder=params['decoder']['hidden_size'],
+        #         input_size_encoder=params['encoder']['hidden_size'] * 2,
+        #         hidden_size=params['coref_attention']['hidden_size']
+        #     )
+        # else:
+        #     coref_attention = DotProductAttention(
+        #         decoder_hidden_size=params['decoder']['hidden_size'],
+        #         encoder_hidden_size=params['decoder']['hidden_size'],
+        #         share_linear=params['coref_attention'].get('share_linear', True)
+        #     )
+
+        # coref_attention_layer = GlobalAttention(
+        #     decoder_hidden_size=params['decoder']['hidden_size'],
+        #     encoder_hidden_size=params['decoder']['hidden_size'],
+        #     attention=coref_attention
+        # )
+
+        # params['decoder']['input_size'] = decoder_input_size
+        # decoder = InputFeedRNNDecoder(
+        #     rnn_cell=StackedLstm.from_params(params['decoder']),
+        #     attention_layer=source_attention_layer,
+        #     coref_attention_layer=coref_attention_layer,
+        #     # TODO: modify the dropout so that the dropout mask is unchanged across the steps.
+        #     dropout=InputVariationalDropout(p=params['decoder']['dropout']),
+        #     use_coverage=params['use_coverage']
+        # )
+
+        # if params.get('use_aux_encoder', False):
+        #     aux_encoder = PytorchSeq2SeqWrapper(
+        #         module=StackedBidirectionalLstm.from_params(params['aux_encoder']),
+        #         stateful=True
+        #     )
+        #     aux_encoder_output_dropout = InputVariationalDropout(
+        #         p=params['aux_encoder']['dropout'])
+        # else:
+        #     aux_encoder = None
+        #     aux_encoder_output_dropout = None
+
+
         # Source attention
         if params['source_attention']['attention_function'] == 'mlp':
             source_attention = MLPAttention(
@@ -881,55 +1020,7 @@ class STOG(Model):
             attention=source_attention
         )
 
-        # Coref attention
-        if params['coref_attention']['attention_function'] == 'mlp':
-            coref_attention = MLPAttention(
-                decoder_hidden_size=params['decoder']['hidden_size'],
-                encoder_hidden_size=params['decoder']['hidden_size'],
-                attention_hidden_size=params['decoder']['hidden_size'],
-                coverage=params['coref_attention'].get('coverage', False),
-                use_concat=params['coref_attention'].get('use_concat', False)
-            )
-        elif params['coref_attention']['attention_function'] == 'biaffine':
-            coref_attention = BiaffineAttention(
-                input_size_decoder=params['decoder']['hidden_size'],
-                input_size_encoder=params['encoder']['hidden_size'] * 2,
-                hidden_size=params['coref_attention']['hidden_size']
-            )
-        else:
-            coref_attention = DotProductAttention(
-                decoder_hidden_size=params['decoder']['hidden_size'],
-                encoder_hidden_size=params['decoder']['hidden_size'],
-                share_linear=params['coref_attention'].get('share_linear', True)
-            )
-
-        coref_attention_layer = GlobalAttention(
-            decoder_hidden_size=params['decoder']['hidden_size'],
-            encoder_hidden_size=params['decoder']['hidden_size'],
-            attention=coref_attention
-        )
-
-        params['decoder']['input_size'] = decoder_input_size
-        decoder = InputFeedRNNDecoder(
-            rnn_cell=StackedLstm.from_params(params['decoder']),
-            attention_layer=source_attention_layer,
-            coref_attention_layer=coref_attention_layer,
-            # TODO: modify the dropout so that the dropout mask is unchanged across the steps.
-            dropout=InputVariationalDropout(p=params['decoder']['dropout']),
-            use_coverage=params['use_coverage']
-        )
-
-        if params.get('use_aux_encoder', False):
-            aux_encoder = PytorchSeq2SeqWrapper(
-                module=StackedBidirectionalLstm.from_params(params['aux_encoder']),
-                stateful=True
-            )
-            aux_encoder_output_dropout = InputVariationalDropout(
-                p=params['aux_encoder']['dropout'])
-        else:
-            aux_encoder = None
-            aux_encoder_output_dropout = None
-
+        
         switch_input_size = 512 #params['encoder']['hidden_size'] #* 2
         generator = PointerGenerator(
             input_size=512,#params['decoder']['hidden_size'],
@@ -961,7 +1052,8 @@ class STOG(Model):
       
         # v2
         transformers = T5Model.from_pretrained("t5-small")
-        
+        transformers.resize_token_embeddings(len(transformer_tokenizer))
+        transformer_tokenizer.save_pretrained("t5-vocab") 
         # v3
         # transformers = EncoderDecoderModel.from_encoder_decoder_pretrained('bert-base-uncased', 'bert-base-uncased')
 
@@ -969,32 +1061,33 @@ class STOG(Model):
         return cls(
             vocab=vocab,
             punctuation_ids=punctuation_ids,
-            use_must_copy_embedding=params.get('use_must_copy_embedding', False),
+            # use_must_copy_embedding=params.get('use_must_copy_embedding', False),
             use_char_cnn=params['use_char_cnn'],
-            use_coverage=params['use_coverage'],
-            use_aux_encoder=params.get('use_aux_encoder', False),
-            use_bert=params.get('use_bert', False),
+            # use_coverage=params['use_coverage'],
+            # use_aux_encoder=params.get('use_aux_encoder', False),
+            # use_bert=params.get('use_bert', False),
             max_decode_length=params.get('max_decode_length', 50),
-            bert_encoder=bert_encoder,
-            encoder_token_embedding=encoder_token_embedding,
-            encoder_pos_embedding=encoder_pos_embedding,
-            encoder_must_copy_embedding=encoder_must_copy_embedding,
-            encoder_char_embedding=encoder_char_embedding,
-            encoder_char_cnn=encoder_char_cnn,
-            encoder_embedding_dropout=encoder_embedding_dropout,
-            encoder=encoder,
-            encoder_output_dropout=encoder_output_dropout,
+            # bert_encoder=bert_encoder,
+            # encoder_token_embedding=encoder_token_embedding,
+            # encoder_pos_embedding=encoder_pos_embedding,
+            # encoder_must_copy_embedding=encoder_must_copy_embedding,
+            # encoder_char_embedding=encoder_char_embedding,
+            # encoder_char_cnn=encoder_char_cnn,
+            # encoder_embedding_dropout=encoder_embedding_dropout,
+            # encoder=encoder,
+            # encoder_output_dropout=encoder_output_dropout,
             decoder_token_embedding=decoder_token_embedding,
             decoder_coref_embedding=decoder_coref_embedding,
             decoder_pos_embedding=decoder_pos_embedding,
             decoder_char_cnn=decoder_char_cnn,
             decoder_char_embedding=decoder_char_embedding,
             decoder_embedding_dropout=decoder_embedding_dropout,
-            decoder=decoder,
-            aux_encoder=aux_encoder,
-            aux_encoder_output_dropout=aux_encoder_output_dropout,
+            # decoder=decoder,
+            # aux_encoder=aux_encoder,
+            # aux_encoder_output_dropout=aux_encoder_output_dropout,
             transformers=transformers,
             transformers_attention_layer=source_attention_layer,
+            transformer_tokenizer=transformer_tokenizer,
             generator=generator,
             graph_decoder=graph_decoder,
             test_config=params.get('mimick_test', None)

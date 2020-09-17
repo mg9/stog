@@ -119,8 +119,11 @@ class Predictor(Registrable):
         word_splitter = None
         if config['model'].get('use_bert', False):
             word_splitter=config['data'].get('word_splitter', None)
+
+        transformer_tokenizer = T5Tokenizer.from_pretrained(config['transformer_tokenizer'])
+
         dataset_reader = load_dataset_reader(
-            config["data"]["data_type"], word_splitter=word_splitter)
+            config["data"]["data_type"], word_splitter=word_splitter, transformer_tokenizer=transformer_tokenizer)
         if hasattr(dataset_reader, 'set_evaluation'):
             dataset_reader.set_evaluation()
 
