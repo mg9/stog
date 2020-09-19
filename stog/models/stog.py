@@ -83,7 +83,7 @@ class STOG(Model):
                  # aux_encoder_output_dropout,
                  # Transformers
                  transformers,
-                 transformers_attention_layer,
+                 # transformers_attention_layer,
                  transformer_tokenizer,
                  # Generator
                  generator,
@@ -125,7 +125,7 @@ class STOG(Model):
         # self.aux_encoder_output_dropout = aux_encoder_output_dropout
 
         self.transformers = transformers
-        self.transformers_attention_layer = transformers_attention_layer
+        # self.transformers_attention_layer = transformers_attention_layer
         self.transformer_tokenizer = transformer_tokenizer
 
         self.generator = generator
@@ -517,10 +517,13 @@ class STOG(Model):
         encoder_hiddens = outputs.encoder_last_hidden_state
         decoder_hiddens = outputs.last_hidden_state
 
-        attn_h, copy_attentions, coverage = self.transformers_attention_layer(decoder_hiddens, encoder_hiddens, mask)
-        coref_attentions = outputs.decoder_attentions[5] 
+        # attn_h, copy_attentions, coverage = self.transformers_attention_layer(decoder_hiddens, encoder_hiddens, mask)
+        coref_attentions = outputs.decoder_attentions[10] 
         coref_attentions = torch.sum(coref_attentions, dim=1)        # B,Ty,Ty
         
+        copy_attentions = outputs.decoder_attentions[11] 
+        copy_attentions = torch.sum(copy_attentions, dim=1)        # B,Ty,Tx
+
         # print("encoder_hiddens: ",  encoder_hiddens.shape)
         # print("decoder_hiddens: ",  decoder_hiddens.shape)
         # print("copy_attentions: ",  copy_attentions.shape)
@@ -677,9 +680,14 @@ class STOG(Model):
             outputs = self.transformers(input_ids=encoder_inputs, attention_mask=mask, decoder_inputs_embeds=decoder_inputs, output_attentions=True, output_hidden_states=True, return_dict=True)
             memory_bank = outputs.encoder_last_hidden_state
             decoder_hiddens = outputs.last_hidden_state
-            attn_h, _copy_attentions, coverage = self.transformers_attention_layer(decoder_hiddens, memory_bank, mask)
-            _coref_attentions = outputs.decoder_attentions[5] #5 for pretrained t5-small 
-            _coref_attentions = torch.sum(_coref_attentions, dim=1)        # B,Ty,Ty
+            
+            # attn_h, _copy_attentions, coverage = self.transformers_attention_layer(decoder_hiddens, memory_bank, mask)
+            
+            _copy_attentions = outputs.decoder_attentions[11] 
+            _copy_attentions = torch.sum(_copy_attentions, dim=1)        # B,Ty,Tx
+
+            _coref_attentions = outputs.decoder_attentions[10]  
+            _coref_attentions = torch.sum(_coref_attentions, dim=1)      # B,Ty,Ty
 
 
             # 3. Run pointer/generator.
@@ -1086,7 +1094,7 @@ class STOG(Model):
             # aux_encoder=aux_encoder,
             # aux_encoder_output_dropout=aux_encoder_output_dropout,
             transformers=transformers,
-            transformers_attention_layer=source_attention_layer,
+            # transformers_attention_layer=source_attention_layer,
             transformer_tokenizer=transformer_tokenizer,
             generator=generator,
             graph_decoder=graph_decoder,

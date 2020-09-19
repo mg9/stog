@@ -72,7 +72,7 @@ class Seq2SeqMetrics(Metric):
             src_acc=self.copy_accuracy(self.n_correct_source_copies, self.n_source_copies),
             tgt_acc=self.copy_accuracy(self.n_correct_target_copies, self.n_target_copies),
             # bina_acc=self.binary_accuracy(),
-            # xent=self.xent(),
+            xent=self.xent(),
             ppl=self.ppl()
         )
         if reset:
