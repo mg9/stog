@@ -73,8 +73,11 @@ class AbstractMeaningRepresentationDatasetReader(DatasetReader):
         file_path = cached_path(file_path)
         logger.info("Reading instances from lines in file at: %s", file_path)
         for i,amr in enumerate(AMRIO.read(file_path)):
-            # if i>5:
+            # if i>4:
             #     break
+            # print("\n\n---")
+            # print("i: ", i)
+            # print("\n")
             yield self.text_to_instance(amr)
         self.report_coverage()
 
@@ -110,7 +113,6 @@ class AbstractMeaningRepresentationDatasetReader(DatasetReader):
             sequence_field=fields["src_tokens_transformer_tokenized"],
             label_namespace="src_t5_ids"
         )
-        # print("fields['src_ids']:", fields['src_ids'])
 
 
         if list_data['src_token_ids'] is not None:
@@ -142,15 +144,15 @@ class AbstractMeaningRepresentationDatasetReader(DatasetReader):
         #     label_namespace="pos_tags"
         # )
 
-        # fields["tgt_pos_tags"] = SequenceLabelField(
-        #     labels=list_data["tgt_pos_tags"],
-        #     sequence_field=fields["tgt_tokens"],
-        #     label_namespace="pos_tags"
-        # )
+        fields["tgt_pos_tags"] = SequenceLabelField(
+            labels=list_data["tgt_pos_tags"],
+            sequence_field=fields["tgt_tokens"],
+            label_namespace="pos_tags"
+        )
 
-        # self._number_pos_tags += len(list_data['tgt_pos_tags'])
-        # self._number_non_oov_pos_tags += len(
-        #     [tag for tag in list_data['tgt_pos_tags'] if tag != '@@UNKNOWN@@'])
+        self._number_pos_tags += len(list_data['tgt_pos_tags'])
+        self._number_non_oov_pos_tags += len(
+            [tag for tag in list_data['tgt_pos_tags'] if tag != '<unk>'])
 
         fields["tgt_copy_indices"] = SequenceLabelField(
             labels=list_data["tgt_copy_indices"],
@@ -217,9 +219,9 @@ class AbstractMeaningRepresentationDatasetReader(DatasetReader):
                 list_data["src_copy_vocab"]
             )
 
-            # fields["tag_lut"] = MetadataField(
-            #     dict(pos=list_data["pos_tag_lut"])
-            # )
+            fields["tag_lut"] = MetadataField(
+                dict(pos=list_data["pos_tag_lut"])
+            )
 
             fields["source_copy_invalid_ids"] = MetadataField(
                 list_data['src_copy_invalid_ids']

@@ -250,7 +250,7 @@ class STOG(Model):
 
         # [batch, num_tokens]
         decoder_token_inputs = batch['tgt_tokens']['decoder_tokens'][:, :-1].contiguous()
-        # decoder_pos_tags = batch['tgt_pos_tags'][:, :-1]
+        decoder_pos_tags = batch['tgt_pos_tags'][:, :-1]
         # [batch, num_tokens, num_chars]
         decoder_char_inputs = batch['tgt_tokens']['decoder_characters'][:, :-1].contiguous()
         # TODO: The following change can be done in amr.py.
@@ -269,7 +269,7 @@ class STOG(Model):
 
         decoder_inputs = dict(
             token=decoder_token_inputs,
-            # pos_tag=decoder_pos_tags,
+            pos_tag=decoder_pos_tags,
             char=decoder_char_inputs,
             coref=decoder_coref_inputs
         )
@@ -336,7 +336,7 @@ class STOG(Model):
                                 # encoder_inputs['char'],
                                 encoder_inputs['mask'],
                                 parser_inputs['mask'],
-                                # decoder_inputs['pos_tag'],
+                                decoder_inputs['pos_tag'],
                                 decoder_inputs['char'],
                                 decoder_inputs['coref'],
                             )
@@ -383,7 +383,7 @@ class STOG(Model):
 
             invalid_indexes = dict(
                 source_copy=batch.get('source_copy_invalid_ids', None),
-                vocab= None #[set(self.punctuation_ids) for _ in range(len(batch['tag_lut']))]
+                vocab= [set(self.punctuation_ids) for _ in range(len(batch['tag_lut']))]
             )
 
             return dict(
@@ -391,15 +391,15 @@ class STOG(Model):
                 encoder_mask=encoder_inputs['mask'],
                 copy_attention_maps=generator_inputs['copy_attention_maps'],
                 copy_vocabs=batch['src_copy_vocab'],
-                # tag_luts=batch['tag_lut'],
+                tag_luts=batch['tag_lut'],
                 invalid_indexes=invalid_indexes
-                # pos_tags=encoder_inputs['pos_tag'],
+                # pos_tags=encoder_inputs['pos_tag']
                 # must_copy_tags=encoder_inputs['must_copy_tag'],
                 # chars=encoder_inputs['char']
             )
 
     # def encode_decode(self, bert_tokens, token_subword_index, src_tokens, tgt_tokens, pos_tags, must_copy_tags, chars, mask, tgt_mask, tgt_pos_tags, tgt_chars,  tgt_corefs):
-    def encode_decode(self, bert_tokens, token_subword_index, src_tokens, tgt_tokens,  mask, tgt_mask,  tgt_chars,  tgt_corefs):
+    def encode_decode(self, bert_tokens, token_subword_index, src_tokens, tgt_tokens,  mask, tgt_mask,  tgt_pos_tags, tgt_chars,  tgt_corefs):
        
         ### Disable paper raw embeddings for now
         # # [batch, num_tokens, embedding_size]
@@ -494,20 +494,17 @@ class STOG(Model):
         # [batch, num_tokens, embedding_size]
         
         token_embeddings = self.decoder_token_embedding(tgt_tokens)
-        # pos_tag_embeddings = self.decoder_pos_embedding(tgt_pos_tags)
+        pos_tag_embeddings = self.decoder_pos_embedding(tgt_pos_tags)
         coref_embeddings = self.decoder_coref_embedding(tgt_corefs)
         if self.use_char_cnn:
             char_cnn_output = self._get_decoder_char_cnn_output(tgt_chars)
-            # decoder_inputs = torch.cat([
-            #     token_embeddings, pos_tag_embeddings, coref_embeddings, char_cnn_output], 2)
             decoder_inputs = torch.cat([
-                token_embeddings, coref_embeddings, char_cnn_output], 2)
+                token_embeddings, pos_tag_embeddings, coref_embeddings, char_cnn_output], 2)
         else:
-            # decoder_inputs = torch.cat([
-            #     token_embeddings, pos_tag_embeddings, coref_embeddings], 2)
-
             decoder_inputs = torch.cat([
-                 token_embeddings,  coref_embeddings], 2)
+                token_embeddings, pos_tag_embeddings, coref_embeddings], 2)
+
+          
         decoder_inputs = self.decoder_embedding_dropout(decoder_inputs)
 
         ### Disable giving our own embeds for now
@@ -568,7 +565,7 @@ class STOG(Model):
         mask = input_dict['encoder_mask']
         copy_attention_maps = input_dict['copy_attention_maps']
         copy_vocabs = input_dict['copy_vocabs']
-        # tag_luts = input_dict['tag_luts']
+        tag_luts = input_dict['tag_luts']
         invalid_indexes = input_dict['invalid_indexes']
        
         # pos_tags=input_dict['pos_tags']
@@ -593,7 +590,7 @@ class STOG(Model):
         # encoder_inputs = self.encoder_embedding_dropout(encoder_inputs) # dropout at predict ?
         # generator_outputs = self.decode_with_pointer_generator(encoder_inputs, mask, copy_attention_maps, copy_vocabs, tag_luts, invalid_indexes)
         
-        generator_outputs = self.decode_with_pointer_generator(src_tokens, mask, copy_attention_maps, copy_vocabs, invalid_indexes)
+        generator_outputs = self.decode_with_pointer_generator(src_tokens, mask, copy_attention_maps, copy_vocabs,  tag_luts, invalid_indexes)
 
         parser_outputs = self.decode_with_graph_parser(
             generator_outputs['decoder_rnn_memory_bank'],
@@ -609,17 +606,17 @@ class STOG(Model):
         )
 
     # def decode_with_pointer_generator(self, encoder_inputs, mask, copy_attention_maps, copy_vocabs, tag_luts, invalid_indexes):
-    def decode_with_pointer_generator(self, encoder_inputs, mask, copy_attention_maps, copy_vocabs, invalid_indexes):
+    def decode_with_pointer_generator(self, encoder_inputs, mask, copy_attention_maps, copy_vocabs, tag_luts, invalid_indexes):
 
         # [batch_size, 1]
         batch_size = encoder_inputs.size(0)
 
         tokens = torch.ones(batch_size, 1) * self.vocab.get_token_index(
             START_SYMBOL, "decoder_token_ids")
-        # pos_tags = torch.ones(batch_size, 1) * self.vocab.get_token_index(
-        #     DEFAULT_OOV_TOKEN, "pos_tags")
+        pos_tags = torch.ones(batch_size, 1) * self.vocab.get_token_index(
+            DEFAULT_OOV_TOKEN, "pos_tags")
         tokens = tokens.type_as(mask).long()
-        # pos_tags = pos_tags.type_as(tokens)
+        pos_tags = pos_tags.type_as(tokens)
         corefs = torch.zeros(batch_size, 1).type_as(mask).long()
 
         decoder_input_history = []
@@ -651,7 +648,7 @@ class STOG(Model):
             # print("\nstep_i: ", step_i)
             # 1. Get the decoder inputs.
             token_embeddings = self.decoder_token_embedding(tokens)
-            # pos_tag_embeddings = self.decoder_pos_embedding(pos_tags)
+            pos_tag_embeddings = self.decoder_pos_embedding(pos_tags)
             coref_embeddings = self.decoder_coref_embedding(corefs)
 
             if self.use_char_cnn:
@@ -664,18 +661,12 @@ class STOG(Model):
                 )
 
                 char_cnn_output = self._get_decoder_char_cnn_output(chars)
-                # decoder_inputs = torch.cat(
-                #     [token_embeddings, pos_tag_embeddings,
-                #      coref_embeddings, char_cnn_output], 2)
-
                 decoder_inputs = torch.cat(
-                    [token_embeddings, coref_embeddings, char_cnn_output], 2)
-
+                    [token_embeddings, pos_tag_embeddings,
+                     coref_embeddings, char_cnn_output], 2)
             else:
-                # decoder_inputs = torch.cat(
-                #     [token_embeddings, pos_tag_embeddings, coref_embeddings], 2)
                 decoder_inputs = torch.cat(
-                     [token_embeddings,  coref_embeddings], 2)
+                    [token_embeddings, pos_tag_embeddings, coref_embeddings], 2)
 
             outputs = self.transformers(input_ids=encoder_inputs, attention_mask=mask, decoder_inputs_embeds=decoder_inputs, output_attentions=True, output_hidden_states=True, return_dict=True)
             memory_bank = outputs.encoder_last_hidden_state
@@ -713,7 +704,7 @@ class STOG(Model):
 
             # 4. Update maps and get the next token input.
             # _tokens, _predictions, _pos_tags, _corefs, _mask = self._update_maps_and_get_next_input(
-            _tokens, _predictions,  _corefs, _mask = self._update_maps_and_get_next_input(
+            _tokens, _predictions, _pos_tags, _corefs, _mask = self._update_maps_and_get_next_input(
                 step_i,
                 generator_output['predictions'].squeeze(1),
                 generator_output['source_dynamic_vocab_size'],
@@ -721,12 +712,12 @@ class STOG(Model):
                 coref_vocab_maps,
                 copy_vocabs,
                 decoder_mask,
-                # tag_luts,
+                tag_luts,
                 invalid_indexes
             )
 
             tokens = torch.cat([tokens,_tokens],1)
-            # pos_tags = torch.cat([pos_tags,_pos_tags],1)
+            pos_tags = torch.cat([pos_tags,_pos_tags],1)
             corefs = torch.cat([corefs,_corefs],1)
             
             # print("_tokens: ", _tokens)
@@ -773,7 +764,7 @@ class STOG(Model):
         )
 
     # def _update_maps_and_get_next_input(self, step, predictions, copy_vocab_size, coref_attention_maps, coref_vocab_maps, copy_vocabs, masks, tag_luts, invalid_indexes):
-    def _update_maps_and_get_next_input(self, step, predictions, copy_vocab_size, coref_attention_maps, coref_vocab_maps, copy_vocabs, masks,  invalid_indexes):
+    def _update_maps_and_get_next_input(self, step, predictions, copy_vocab_size, coref_attention_maps, coref_vocab_maps, copy_vocabs, masks,  tag_luts, invalid_indexes):
 
         """Dynamically update/build the maps needed for copying.
 
@@ -805,7 +796,6 @@ class STOG(Model):
         # Fill the place where copy didn't happen with the current step,
         # which means that the node doesn't refer to any precedent, it refers to itself.
         coref_index.masked_fill_( torch.logical_not(coref_mask), step + 1)
-
         coref_attention_maps[batch_index, step_index, coref_index] = 1
 
         # 2. Compute the next input.
@@ -816,27 +806,42 @@ class STOG(Model):
 
         # If a token is copied from the source side, we look up its index in the gen vocab.
         copy_predictions = (predictions - vocab_size) * copy_mask.long()
-        # pos_tags = torch.full_like(predictions, self.vocab.get_token_index(DEFAULT_OOV_TOKEN, 'pos_tags'))
+        # print("bef copy_predictions: ", copy_predictions)
+
+        pos_tags = torch.full_like(predictions, self.vocab.get_token_index(DEFAULT_OOV_TOKEN, 'pos_tags'))
         for i, index in enumerate(copy_predictions.tolist()):
             copied_token = copy_vocabs[i].get_token_from_idx(index)
-            # if index != 0:
-            #     pos_tags[i] = self.vocab.get_token_index(
-            #         tag_luts[i]['pos'][copied_token], 'pos_tags')
-            #     if False: # is_abstract_token(copied_token):
-            #         invalid_indexes['source_copy'][i].add(index)
+            # print("index: ", index)
+            # print("copy_vocabs: ", copy_vocabs)
+            # print("copied_token: ", copied_token)
+            # print("tag_luts[i]['pos']: ", tag_luts[i]['pos'])
+            if copied_token[:1] == "▁":
+                copied_token = copied_token[1:]
+            if index != 0:
+                if copied_token in tag_luts[i]['pos'].keys():
+                    pos_tags[i] = self.vocab.get_token_index(
+                        tag_luts[i]['pos'][copied_token], 'pos_tags')
+                if False: # is_abstract_token(copied_token):
+                    invalid_indexes['source_copy'][i].add(index)
             copy_predictions[i] = self.vocab.get_token_index(copied_token, 'decoder_token_ids')
+
+        # print("_copy: ", copy_predictions * copy_mask.long())
 
         for i, index in enumerate(
                 (predictions * gen_mask.long() + coref_predictions * coref_mask.long()).tolist()):
             if index != 0:
                 token = self.vocab.get_token_from_index(index, 'decoder_token_ids')
-                # src_token = find_similar_token(token, list(tag_luts[i]['pos'].keys()))
-                # if src_token is not None:
-                #     pos_tags[i] = self.vocab.get_token_index(
-                #         tag_luts[i]['pos'][src_token], 'pos_tag')
-                # if False: # is_abstract_token(token):
-                #     invalid_indexes['vocab'][i].add(index)
+                src_token = find_similar_token(token, list(tag_luts[i]['pos'].keys()))
+                if src_token is not None:
+                    pos_tags[i] = self.vocab.get_token_index(
+                        tag_luts[i]['pos'][src_token], 'pos_tag')
+                if False: # is_abstract_token(token):
+                    invalid_indexes['vocab'][i].add(index)
 
+        # print("aft copy_predictions: ", copy_predictions)
+        # print("coref_mask: ",coref_mask)
+        # print("copy_mask: ",copy_mask)
+        # print("gen_mask: ",gen_mask)
         next_input = coref_predictions * coref_mask.long() + \
                      copy_predictions * copy_mask.long() + \
                      predictions * gen_mask.long()
@@ -844,6 +849,7 @@ class STOG(Model):
         # 3. Update dynamic_vocab_maps
         # Here we update D_{step} to the index in the standard vocab.
         coref_vocab_maps[batch_index, step_index + 1] = next_input
+        # print("next_input: ",next_input)
 
         # 4. Get the coref-resolved predictions.
         coref_resolved_preds = coref_predictions * coref_mask.long() + predictions * (torch.logical_not(coref_mask)).long()
@@ -858,7 +864,7 @@ class STOG(Model):
         
         return (next_input.unsqueeze(1),
                 coref_resolved_preds.unsqueeze(1),
-                # pos_tags.unsqueeze(1),
+                pos_tags.unsqueeze(1),
                 coref_index.unsqueeze(1),
                 mask.unsqueeze(1))
 

@@ -9,7 +9,7 @@ import networkx as nx
 
 from stog.data.vocabulary import DEFAULT_PADDING_TOKEN, DEFAULT_OOV_TOKEN
 from stog.data.dataset_readers.amr_parsing.graph_repair import GraphRepair
-from stog.utils.string import find_similar_token, is_abstract_token, is_english_punct, END_SYMBOL, T5_PREFIX
+from stog.utils.string import find_similar_token, is_abstract_token, is_english_punct, is_english_punct_or_t5_token_symbol, END_SYMBOL, T5_PREFIX
 from stog.utils import logging
 
 logger = logging.init_logger()
@@ -442,7 +442,7 @@ class AMRGraph(penman.Graph):
         node_list = []
 
         def dfs(node, relation, parent):
-
+            # print(node,"-",relation,"-",parent)
             node_list.append((
                 node if node.copy_of is None or not replace_copy else node.copy_of,
                 relation,
@@ -452,6 +452,8 @@ class AMRGraph(penman.Graph):
                 visited[node] = 1
                 for child_node, child_relation in self.sort_edges(self._G[node].items()):
                     dfs(child_node, child_relation["label"], node)
+
+        # print("top: ", self.variable_to_node[self._top])
 
         dfs(
             self.variable_to_node[self._top],
@@ -487,6 +489,7 @@ class AMRGraph(penman.Graph):
     def get_list_data(self, amr, bos=None, eos=None, bert_tokenizer=None, max_tgt_length=None, transformers_tokenizer=None): #bos=None , t5_tokenizer, 
         node_list = self.get_list_node()
 
+        # print("node_list: ", node_list)
         tgt_tokens = []
         head_tags = []
         head_indices = []
@@ -542,7 +545,7 @@ class AMRGraph(penman.Graph):
 
         # Target side Coreference
         tgt_copy_indices = [i for i in range(len(tgt_tokens))]
-
+        # print("node_to_idx: ", node_to_idx)
         for node, indices in node_to_idx.items():
             if len(indices) > 1:
                 copy_idx = indices[0] + copy_offset
@@ -590,47 +593,55 @@ class AMRGraph(penman.Graph):
         src_tokens = self.get_src_tokens()
         src_tokens = [T5_PREFIX] + src_tokens + ["</s>"] #[END_SYMBOL]
 
-        # print("\n\n---")
+       
         # Convert srctokens to t5tokens
-        # print("src_tokens before: ", src_tokens)
         src_sentence = " ".join(src_tokens).strip()
         src_ids = transformers_tokenizer.encode(src_sentence, return_tensors='pt')[0]
         _src_tokens = transformers_tokenizer.convert_ids_to_tokens(src_ids)
-        # print("src_tokens transformers_tokenized: ", src_tokens)
-        # print("src_ids: ", src_ids)
 
         src_token_ids = None
         src_token_subword_index = None
-        # src_pos_tags = amr.pos_tags
-        # src_pos_tags = [DEFAULT_OOV_TOKEN] + src_pos_tags + [DEFAULT_OOV_TOKEN]
+        src_pos_tags = amr.pos_tags
+        src_pos_tags = [DEFAULT_OOV_TOKEN] + src_pos_tags + [DEFAULT_OOV_TOKEN]
 
-        src_copy_vocab = SourceCopyVocabulary(_src_tokens)
+        clean_src_tokens = []
+        for token in _src_tokens:
+            if token[:1] == "▁":
+               clean_src_tokens.append(token[1:])
+            else:
+               clean_src_tokens.append(token)
+
+        src_copy_vocab = SourceCopyVocabulary(clean_src_tokens)
         src_copy_indices = src_copy_vocab.index_sequence(tgt_tokens)
+        src_copy_map = src_copy_vocab.get_copy_map(clean_src_tokens)
+        tgt_pos_tags, pos_tag_lut = add_source_side_tags_to_target_side(src_tokens, src_pos_tags)
 
-
-        src_copy_map = src_copy_vocab.get_copy_map(_src_tokens)
-        # tgt_pos_tags, pos_tag_lut = add_source_side_tags_to_target_side(src_tokens, src_pos_tags)
+        # print("tgt_pos_tags: ", tgt_pos_tags)
+        # print("pos_tag_lut: ", pos_tag_lut)
 
         # if bert_tokenizer is not None:
         #     src_token_ids, src_token_subword_index = bert_tokenizer.tokenize(src_tokens, True)
 
         # src_must_copy_tags = [1 if is_abstract_token(t) else 0 for t in src_tokens]
+
         src_copy_invalid_ids = set(src_copy_vocab.index_sequence(
-            [t for t in src_tokens if is_english_punct(t)]))
+            [t for t in _src_tokens if is_english_punct_or_t5_token_symbol(t)]))
 
-        # print("src_copy_indices: ", src_copy_indices)
-        # print("src_copy_map: ", src_copy_map)
-        # print("src_copy_invalid_ids: ", src_copy_invalid_ids)
+        # print("clean_src_tokens: ", clean_src_tokens)
+        # print("src_tokens before: ", src_tokens)
+        # print("srctokens transformer tokenization: ", _src_tokens)
         # print("src_copy_vocab: ", src_copy_vocab)
-
+        # print("src_copy_indices: ", src_copy_indices)
         # print("tgt_tokens: ", tgt_tokens)
+        # print("src_copy_invalid_ids: ", src_copy_invalid_ids)
         # print("tgt_copy_indices: ", tgt_copy_indices)
+        # print("src_copy_map: ", src_copy_map)
         # print("tgt_copy_map: ", tgt_copy_map)
 
 
         return {
             "tgt_tokens" : tgt_tokens,
-            # "tgt_pos_tags": tgt_pos_tags,
+            "tgt_pos_tags": tgt_pos_tags,
             "tgt_copy_indices" : tgt_copy_indices,
             "tgt_copy_map" : tgt_copy_map,
             "tgt_copy_mask" : tgt_copy_mask,
@@ -644,7 +655,7 @@ class AMRGraph(penman.Graph):
             "src_copy_vocab" : src_copy_vocab,
             "src_copy_indices" : src_copy_indices,
             "src_copy_map" : src_copy_map,
-            # "pos_tag_lut": pos_tag_lut,
+            "pos_tag_lut": pos_tag_lut,
             "head_tags" : head_tags,
             "head_indices" : head_indices,
             "src_copy_invalid_ids" : src_copy_invalid_ids
@@ -795,7 +806,7 @@ class AMRGraph(penman.Graph):
 class SourceCopyVocabulary:
     def __init__(self, sentence, pad_token=DEFAULT_PADDING_TOKEN, unk_token=DEFAULT_OOV_TOKEN):
         if type(sentence) is not list:
-            sentence = sentence.split(" ")
+            sentence = sentence.split(" ").encode("utf-8")
 
         self.src_tokens = sentence
         self.pad_token = pad_token
@@ -819,7 +830,11 @@ class SourceCopyVocabulary:
         return self.token_to_idx.get(token, self.token_to_idx[self.unk_token])
 
     def index_sequence(self, list_tokens):
-        return [self.get_token_idx(token) for token in list_tokens]
+        ids = []
+        for token in list_tokens:
+            ids.append(self.get_token_idx(token))
+        return ids
+        # return [self.get_token_idx(token) for token in list_tokens]
 
     def get_copy_map(self, list_tokens):
         src_indices = [self.get_token_idx(self.unk_token)] + self.index_sequence(list_tokens)
@@ -831,4 +846,4 @@ class SourceCopyVocabulary:
         return [self.pad_token, self.unk_token]
 
     def __repr__(self):
-        return json.dumps(self.idx_to_token)
+        return json.dumps(self.idx_to_token, ensure_ascii=False).encode('utf8').decode()

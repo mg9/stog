@@ -20,8 +20,8 @@ def is_english_punct(c):
     return re.search(r'^[,.?!:;"\'-(){}\[\]]$', c)
 
 
-def is_english_punct_or_t5_prefix(c):
-    return is_english_punct(c) or c == "summarize:"
+def is_english_punct_or_t5_token_symbol(c):
+    return (is_english_punct(c) or c == "▁")
 
 def find_similar_token(token, tokens):
     token = re.sub(r'-\d\d$', '', token) # .lower())

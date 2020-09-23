@@ -1,0 +1,83 @@
+node_list:  [
+
+(p / pick-out, 'root', p / pick-out), 
+(t / thing, 'ARG1', p / pick-out), 
+(s / submit, 'ARG1-of', t / thing), 
+(c / committee, 'ARG2', s / submit), 
+(a / assess, 'ARG0-of', c / committee), 
+(a2 / assess, 'ARG3', s / submit), 
+(c / committee, 'ARG0', a2 / assess), 
+(t / thing, 'ARG1', a2 / assess), 
+(t2 / they, 'ARG2', p / pick-out)]
+
+
+node_to_idx:  defaultdict(<class 'list'>, {p / pick-out: [0], t / thing: [2, 9], s / submit: [4], c / committee: [5, 8], a / assess: [6], a2 / assess: [7], t2 / they: [10]})
+
+clean_src_tokens:  ['summarize', ':', '1', '', '.', 'from', 'among', 'they', '', ',', 'pick', '-', 'out', '10', 'for', 'submission', 'to', '', 'a', 'assessment', 'committee', 'to', 'assess', '', '.', '</s>']
+
+src_tokens before:  ['summarize:', '1', '.', 'from', 'among', 'they', ',', 'pick-out', '10', 'for', 'submission', 'to', 'a', 'assessment', 'committee', 'to', 'assess', '.', '</s>']
+
+srctokens transformer tokenization:  ['▁summarize', ':', '▁1', '▁', '.', '▁from', '▁among', '▁they', '▁', ',', '▁pick', '-', 'out', '▁10', '▁for', '▁submission', '▁to', '▁', 'a', '▁assessment', 
+'▁committee', '▁to', '▁assess', '▁', '.', '</s>']
+
+src_copy_vocab:  {
+    "0": "<pad>",
+    "1": "<unk>",
+    "2": "summarize",
+    "3": ":",
+    "4": "1",
+    "5": "",
+    "6": ".",
+    "7": "from",
+    "8": "among",
+    "9": "they",
+    "10": ",",
+    "11": "pick",
+    "12": "-",
+    "13": "out",
+    "14": "10",
+    "15": "for",
+    "16": "submission",
+    "17": "to",
+    "18": "a",
+    "19": "assessment",
+    "20": "committee",
+    "21": "assess",
+    "22": "</s>"
+}
+
+src_copy_invalid_ids:  {1, 10, 3, 6}
+src_copy_indices:  [1, 1, 4, 1, 14, 1, 20, 21, 21, 20, 1, 9, 1]
+tgt_copy_indices:  [0, 0, 0, 0,  0, 0,  0,  0, 0,   6, 3, 0, 0]
+
+tgt_tokens:  [
+'@start@', 
+'pick-out', 
+'1', 
+'thing', 
+'10', 
+'submit', 
+'committee', 
+'assess', 
+'assess', 
+'committee', 
+'thing', 
+'they', 
+'@end@'
+]
+
+
+src_copy_map:  [(0, 1), (1, 2), (2, 3), (3, 4), (4, 5), (5, 6), (6, 7), (7, 8), (8, 9), (9, 5), (10, 10), (11, 11), (12, 12), (13, 13), (14, 14), (15, 15), (16, 16), (17, 17), (18, 5), (19, 18), (20, 19), (21, 20), (22, 17), (23, 21), (24, 5), (25, 6), (26, 22)]
+tgt_copy_map:  [(0, 0), (1, 1), (2, 2), (3, 3), (4, 4), (5, 5), (6, 6), (7, 7), (8, 8), (9, 6), (10, 3), (11, 11), (12, 12)]
+
+
+copy_targets: 
+[ 1,  4,  1, 14,  1, 20, 21, 21, 20,  1,  9,  1,  0,  0,  0,  0,  0,  0, 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0],
+
+coref_targets: 
+[ 0,  0,  0,  0,  0,  0,  0,  0,  6,  3,  0,  0,  0,  0,  0,  0,  0,  0, 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0],
+
+vocab_targets: 
+[54,  8, 18, 55, 56, 19, 20, 20, 19, 18, 57,  6,  0,  0,  0,  0,  0,  0, 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0],
+       
+

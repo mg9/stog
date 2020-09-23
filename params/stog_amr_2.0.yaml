@@ -71,7 +71,7 @@ model:
 
   decoder_coref_embedding:
     num_embeddings: 500
-    embedding_dim: 150
+    embedding_dim: 50
     padding_index: 0
     dropout: 0.33
 
@@ -140,8 +140,8 @@ vocab:
       encoder_token_ids: 1
       decoder_token_ids: 1
   max_vocab_size:
-      encoder_token_ids: 18000
-      decoder_token_ids: 12200
+      encoder_token_ids: 18000 
+      decoder_token_ids: 12201 # 12200
 
 
 # Data parameters
@@ -170,7 +170,7 @@ environment:
   seed: 1
   numpy_seed: 1
   torch_seed: 1
-  serialization_dir: &serialization_dir ckpt-amr-2.10
+  serialization_dir: &serialization_dir ckpt-amr-2.11
   file_friendly_logging: False
   gpu: True
   cuda_device: 0
