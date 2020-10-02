@@ -41,6 +41,7 @@ class PointerGenerator(torch.nn.Module):
             [batch_size, num_target_nodes, dynamic_vocab_size]
         :param invalid_indexes: indexes which are not considered in prediction.
         """
+        # print("hiddens.shape: ", hiddens.shape)
         # print("source_attentions.shape: ", source_attentions.shape)
         # print("source_attention_maps.shape: ", source_attention_maps.shape)
         # print("target_attentions.shape: ", target_attentions.shape)
@@ -61,10 +62,18 @@ class PointerGenerator(torch.nn.Module):
         # [batch_size * num_target_nodes, vocab_size]
         scores = self.linear(hiddens)
         scores[:, self.vocab_pad_idx] = -float('inf')
+        scores[:, 1] = -float('inf')
+
         # [batch_size, num_target_nodes, vocab_size]
         scores = scores.view(batch_size, num_target_nodes, -1)
         vocab_probs = self.softmax(scores)
+
+        # print("vocab_probs: ", vocab_probs.shape)
+        # print("vocab_probs: ", vocab_probs)
+
         scaled_vocab_probs = torch.mul(vocab_probs, p_generate.expand_as(vocab_probs))
+        # print("scaled_vocab_probs: ", scaled_vocab_probs.shape)
+        # print("scaled_vocab_probs: ", scaled_vocab_probs)
 
         # [batch_size, num_target_nodes, num_source_nodes]
         scaled_source_attentions = torch.mul(source_attentions, p_copy_source.expand_as(source_attentions))
@@ -80,7 +89,6 @@ class PointerGenerator(torch.nn.Module):
      
         scaled_target_attentions = torch.mul(target_attentions, p_copy_target.expand_as(target_attentions))
         # [batch_size, num_target_nodes, dymanic_vocab_size]
-        # print("scaled_target_attentions.shape: ", scaled_target_attentions.shape)
 
         scaled_copy_target_probs = torch.bmm(scaled_target_attentions, target_attention_maps.float())
 
@@ -97,12 +105,22 @@ class PointerGenerator(torch.nn.Module):
                     for index in indexes:
                         scaled_copy_source_probs[i, :, index] = 0
 
+
+        # print("scaled_copy_source_probs: ", scaled_copy_source_probs.shape)
+        # print("scaled_copy_source_probs: ", scaled_copy_source_probs)
+        # print("scaled_copy_target_probs: ", scaled_copy_target_probs.shape)
+        # print("scaled_copy_target_probs: ", scaled_copy_target_probs)
+
         # [batch_size, num_target_nodes, vocab_size + dynamic_vocab_size]
         probs = torch.cat([
             scaled_vocab_probs.contiguous(),
             scaled_copy_source_probs.contiguous(),
             scaled_copy_target_probs.contiguous()
         ], dim=2)
+
+        # print("probs: ", probs.shape)
+        # print("probs: ", probs)
+
 
         # Set the probability of coref NA to 0.
         _probs = probs.clone()

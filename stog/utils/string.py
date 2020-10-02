@@ -21,7 +21,7 @@ def is_english_punct(c):
 
 
 def is_english_punct_or_t5_token_symbol(c):
-    return (is_english_punct(c) or c == "▁")
+    return (is_english_punct(c) or c == "▁" or c == "<unk>")
 
 def find_similar_token(token, tokens):
     token = re.sub(r'-\d\d$', '', token) # .lower())
