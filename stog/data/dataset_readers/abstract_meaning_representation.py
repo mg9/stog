@@ -30,6 +30,7 @@ class AbstractMeaningRepresentationDatasetReader(DatasetReader):
                  token_indexers: Dict[str, TokenIndexer] = None,
                  word_splitter = None,
                  transformer_tokenizer = None,
+                 amrnodes_tot5_tokens = None,
                  lazy: bool = False,
                  skip_first_line: bool = True,
                  evaluation: bool = False
@@ -51,6 +52,7 @@ class AbstractMeaningRepresentationDatasetReader(DatasetReader):
         self._number_pos_tags = 0
 
         self.transformer_tokenizer =transformer_tokenizer
+        self.amrnodes_tot5_tokens =amrnodes_tot5_tokens
 
     def report_coverage(self):
         if self._number_bert_ids != 0:
@@ -73,7 +75,7 @@ class AbstractMeaningRepresentationDatasetReader(DatasetReader):
         file_path = cached_path(file_path)
         logger.info("Reading instances from lines in file at: %s", file_path)
         for i,amr in enumerate(AMRIO.read(file_path)):
-            # if i>4:
+            # if i>0:
             #     break
             # print("\n\n---")
             # print("i: ", i)
@@ -82,101 +84,62 @@ class AbstractMeaningRepresentationDatasetReader(DatasetReader):
         self.report_coverage()
 
     @overrides
-    def text_to_instance(self, amr) -> Instance: # t5_tokenizer
-        # pylint: disable=arguments-differ
+    def text_to_instance(self, amr) -> Instance: 
 
         fields: Dict[str, Field] = {}
         max_tgt_length = None if self._evaluation else 60
 
-        list_data = amr.graph.get_list_data(
-            amr, START_SYMBOL, END_SYMBOL, self._word_splitter, max_tgt_length, self.transformer_tokenizer) # START_SYMBOL, 
-
-        # These four fields are used for seq2seq model and target side self copy
-        # fields["src_tokens"] = TextField(
-        #     tokens=[Token(x) for x in list_data["src_tokens"]],
-        #     token_indexers={k: v for k, v in self._token_indexers.items() if 'encoder' in k}
-        # )
-
-
-        fields["src_tokens"] = TextField(
-            tokens=[Token(x) for x in list_data["src_tokens"]],
-            token_indexers={k: v for k, v in self._token_indexers.items() if 'encoder' in k}
-        )
+        list_data = amr.graph.get_list_data(amr, None, END_SYMBOL, self._word_splitter, max_tgt_length, self.transformer_tokenizer, self.amrnodes_tot5_tokens) # START_SYMBOL, 
 
         fields["src_tokens_transformer_tokenized"] = TextField(
             tokens=[Token(x) for x in list_data["src_tokens_transformer_tokenized"]],
             token_indexers={k: v for k, v in self._token_indexers.items() if 'transformer' in k}
         )
         
+        fields["tgt_tokens_transformer_tokenized"] = TextField(
+            tokens=[Token(x) for x in list_data["tgt_tokens_transformer_tokenized"]],
+            token_indexers={k: v for k, v in self._token_indexers.items() if 'transformer' in k}
+        )
+
+
         fields["src_ids"] = SequenceLabelField(
             labels=list_data["src_ids"].tolist(),
             sequence_field=fields["src_tokens_transformer_tokenized"],
             label_namespace="src_t5_ids"
         )
 
+        fields["tgt_ids"] = SequenceLabelField(
+            labels=list_data["tgt_ids"],
+            sequence_field=fields["tgt_tokens_transformer_tokenized"],
+            label_namespace="tgt_t5_ids"
+        )
 
-        if list_data['src_token_ids'] is not None:
-            fields['src_token_ids'] = ArrayField(list_data['src_token_ids'])
-            self._number_bert_ids += len(list_data['src_token_ids'])
-            self._number_bert_oov_ids += len(
-                [bert_id for bert_id in list_data['src_token_ids'] if bert_id == 100])
-
-        if list_data['src_token_subword_index'] is not None:
-            fields['src_token_subword_index'] = ArrayField(
-                list_data['src_token_subword_index'])
-
-        # fields["src_must_copy_tags"] = SequenceLabelField(
-        #     labels=list_data["src_must_copy_tags"],
-        #     sequence_field=fields["src_tokens"],
-        #     label_namespace="must_copy_tags"
-        # )
+        fields["src_tokens"] = TextField(
+            tokens=[Token(x) for x in list_data["src_tokens"]],
+            token_indexers={k: v for k, v in self._token_indexers.items() if 'encoder' in k}
+        )
 
         fields["tgt_tokens"] = TextField(
             tokens=[Token(x) for x in list_data["tgt_tokens"]],
             token_indexers={k: v for k, v in self._token_indexers.items() if 'decoder' in k}
         )
-        # print("fields['tgt_tokens']:", fields['tgt_tokens'])
 
-
-        # fields["src_pos_tags"] = SequenceLabelField(
-        #     labels=list_data["src_pos_tags"],
-        #     sequence_field=fields["src_tokens"],
-        #     label_namespace="pos_tags"
-        # )
-
-        fields["tgt_pos_tags"] = SequenceLabelField(
-            labels=list_data["tgt_pos_tags"],
+        fields["src_copy_indices"] = SequenceLabelField(
+            labels=list_data["src_copy_indices"],
             sequence_field=fields["tgt_tokens"],
-            label_namespace="pos_tags"
+            label_namespace="source_copy_target_tags"
         )
-
-        self._number_pos_tags += len(list_data['tgt_pos_tags'])
-        self._number_non_oov_pos_tags += len(
-            [tag for tag in list_data['tgt_pos_tags'] if tag != '<unk>'])
 
         fields["tgt_copy_indices"] = SequenceLabelField(
             labels=list_data["tgt_copy_indices"],
             sequence_field=fields["tgt_tokens"],
-            label_namespace="coref_tags",
-        )
-
-        fields["tgt_copy_mask"] = SequenceLabelField(
-            labels=list_data["tgt_copy_mask"],
-            sequence_field=fields["tgt_tokens"],
-            label_namespace="coref_mask_tags",
+            label_namespace="coref_tags"
         )
 
         fields["tgt_copy_map"] = AdjacencyField(
             indices=list_data["tgt_copy_map"],
             sequence_field=fields["tgt_tokens"],
             padding_value=0
-        )
-
-        # These two fields for source copy
-        fields["src_copy_indices"] = SequenceLabelField(
-            labels=list_data["src_copy_indices"],
-            sequence_field=fields["tgt_tokens"],
-            label_namespace="source_copy_target_tags",
         )
 
         fields["src_copy_map"] = AdjacencyField(
@@ -188,6 +151,18 @@ class AbstractMeaningRepresentationDatasetReader(DatasetReader):
                 None
             ),
             padding_value=0
+        )
+
+        fields["tgt_pos_tags"] = SequenceLabelField(
+            labels=list_data["tgt_pos_tags"],
+            sequence_field=fields["tgt_tokens"],
+            label_namespace="pos_tags"
+        )
+
+        fields["tgt_copy_mask"] = SequenceLabelField(
+            labels=list_data["tgt_copy_mask"],
+            sequence_field=fields["tgt_tokens"],
+            label_namespace="coref_mask_tags"
         )
 
         # These two fields are used in biaffine parser

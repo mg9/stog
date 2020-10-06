@@ -62,22 +62,25 @@ class PointerGenerator(torch.nn.Module):
         # [batch_size * num_target_nodes, vocab_size]
         scores = self.linear(hiddens)
         scores[:, self.vocab_pad_idx] = -float('inf')
-        scores[:, 1] = -float('inf')
+        # scores[:, 1] = -float('inf')
 
         # [batch_size, num_target_nodes, vocab_size]
         scores = scores.view(batch_size, num_target_nodes, -1)
         vocab_probs = self.softmax(scores)
 
+        scaled_vocab_probs = torch.mul(vocab_probs, p_generate.expand_as(vocab_probs))
         # print("vocab_probs: ", vocab_probs.shape)
         # print("vocab_probs: ", vocab_probs)
-
-        scaled_vocab_probs = torch.mul(vocab_probs, p_generate.expand_as(vocab_probs))
         # print("scaled_vocab_probs: ", scaled_vocab_probs.shape)
         # print("scaled_vocab_probs: ", scaled_vocab_probs)
 
         # [batch_size, num_target_nodes, num_source_nodes]
         scaled_source_attentions = torch.mul(source_attentions, p_copy_source.expand_as(source_attentions))
         # print("scaled_source_attentions.shape: ", scaled_source_attentions.shape)
+        # print("source_attention_maps.shape: ", source_attention_maps.shape)
+
+        # for x in range(source_attention_maps.size(1)):
+        #         print("source_attention_maps: ", source_attention_maps[1,x,:])
 
         # [batch_size, num_target_nodes, dynamic_vocab_size]
         scaled_copy_source_probs = torch.bmm(scaled_source_attentions, source_attention_maps.float())
@@ -158,6 +161,7 @@ class PointerGenerator(torch.nn.Module):
         :param copy_attentions: [batch_size, num_target_nodes, num_source_nodes]
         """
 
+
         non_pad_mask = generate_targets.ne(self.vocab_pad_idx)
 
         source_copy_mask = source_copy_targets.ne(1) & source_copy_targets.ne(0)  # 1 is the index for unknown words
@@ -171,19 +175,18 @@ class PointerGenerator(torch.nn.Module):
         # [batch_size, num_target_nodes]
         target_copy_target_probs = probs.gather(dim=2, index=target_copy_targets_with_offset).squeeze(2)
         target_copy_target_probs = target_copy_target_probs.mul(target_copy_mask.float())
-
         # [batch_size, num_target_nodes, 1]
         source_copy_targets_with_offset = source_copy_targets.unsqueeze(2) + self.vocab_size
         # [batch_size, num_target_nodes]
         source_copy_target_probs = probs.gather(dim=2, index=source_copy_targets_with_offset).squeeze(2)
         source_copy_target_probs = source_copy_target_probs.mul(non_target_copy_mask.float()).mul(source_copy_mask.float())
-
         # [batch_size, num_target_nodes]
         generate_target_probs = probs.gather(dim=2, index=generate_targets.unsqueeze(2)).squeeze(2)
 
         # Except copy-oov nodes, all other nodes should be copied.
         likelihood = target_copy_target_probs + source_copy_target_probs + \
                      generate_target_probs.mul(non_target_copy_mask.float()).mul(non_source_copy_mask.float())
+
         num_tokens = non_pad_mask.sum().item()
 
         if not self.force_copy:

@@ -12,7 +12,7 @@ ROOT_CHAR="<r>"
 logger = logging.init_logger()
 
 
-def load_dataset_reader(dataset_type, transformer_tokenizer, *args, **kwargs): 
+def load_dataset_reader(dataset_type, transformer_tokenizer, amrnodes_tot5_tokens, *args, **kwargs): 
     if dataset_type == "AMR":
         dataset_reader = AbstractMeaningRepresentationDatasetReader(
             token_indexers=dict(
@@ -23,7 +23,8 @@ def load_dataset_reader(dataset_type, transformer_tokenizer, *args, **kwargs):
                 transformer_tokens=SingleIdTokenIndexer(namespace="transformer_token_ids")
             ),
             word_splitter=kwargs.get('word_splitter', None),
-            transformer_tokenizer= transformer_tokenizer
+            transformer_tokenizer= transformer_tokenizer,
+            amrnodes_tot5_tokens = amrnodes_tot5_tokens
         )
 
     else:
@@ -31,11 +32,11 @@ def load_dataset_reader(dataset_type, transformer_tokenizer, *args, **kwargs):
     return dataset_reader
 
 
-def load_dataset(path, dataset_type,  transformer_tokenizer, *args, **kwargs):
-    return load_dataset_reader(dataset_type, transformer_tokenizer, *args, **kwargs).read(path)
+def load_dataset(path, dataset_type,  transformer_tokenizer, amrnodes_tot5_tokens, *args, **kwargs):
+    return load_dataset_reader(dataset_type, transformer_tokenizer, amrnodes_tot5_tokens, *args, **kwargs).read(path)
 
 
-def dataset_from_params(params, transformer_tokenizer):
+def dataset_from_params(params, transformer_tokenizer, amrnodes_tot5_tokens):
 
     train_data = os.path.join(params['data_dir'], params['train_data'])
     dev_data = os.path.join(params['data_dir'], params['dev_data'])
@@ -43,15 +44,15 @@ def dataset_from_params(params, transformer_tokenizer):
     data_type = params['data_type']
 
     logger.info("Building train datasets ...")
-    train_data = load_dataset(train_data, data_type, transformer_tokenizer, **params)
+    train_data = load_dataset(train_data, data_type, transformer_tokenizer, amrnodes_tot5_tokens, **params)
 
     logger.info("Building dev datasets ...")
-    dev_data = load_dataset(dev_data, data_type, transformer_tokenizer, **params)
+    dev_data = load_dataset(dev_data, data_type, transformer_tokenizer, amrnodes_tot5_tokens, **params)
 
     if test_data:
         test_data = os.path.join(params['data_dir'], params['test_data'])
         logger.info("Building test datasets ...")
-        test_data = load_dataset(test_data, data_type, transformer_tokenizer, **params)
+        test_data = load_dataset(test_data, data_type, transformer_tokenizer, amrnodes_tot5_tokens, **params)
 
     #logger.info("Building vocabulary ...")
     #build_vocab(fields, train_data)

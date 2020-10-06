@@ -9,7 +9,7 @@ JsonDict = Dict[str, Any]
 # will lowercase tokens for you in some circumstances, and we need this symbol to not change in
 # those cases).
 START_SYMBOL = '@start@'
-END_SYMBOL = '@end@'
+END_SYMBOL = '</s>'#'@end@'
 T5_PREFIX = 'summarize:'
 
 def is_abstract_token(token):
@@ -21,7 +21,7 @@ def is_english_punct(c):
 
 
 def is_english_punct_or_t5_token_symbol(c):
-    return (is_english_punct(c) or c == "▁" or c == "<unk>")
+    return (is_english_punct(c) or c == "▁" or c == "<unk>" or c =="</s>" or c=="summarize")
 
 def find_similar_token(token, tokens):
     token = re.sub(r'-\d\d$', '', token) # .lower())

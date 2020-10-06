@@ -50,10 +50,9 @@ class STOGPredictor(Predictor):
 
             for i, index in enumerate(node_indexes):
 
-                print("copy_vocab::", copy_vocab)
-
-                print("index::", index)
-                print("copy_indicators::", copy_indicators)
+                # print("copy_vocab::", copy_vocab)
+                # print("index::", index)
+                # print("copy_indicators::", copy_indicators)
 
                 # Lookup the node.
                 if index >= gen_vocab_size:
