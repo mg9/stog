@@ -65,7 +65,11 @@ class STOG(Model):
         self.generator = generator
         self.graph_decoder = graph_decoder
 
+<<<<<<< HEAD
         self.beam_size = 1
+=======
+        self.beam_size = 0
+>>>>>>> tmp
         self.test_config = test_config
 
     def set_beam_size(self, beam_size):
@@ -91,7 +95,7 @@ class STOG(Model):
         word_splitter = None
         # if self.use_bert:
         #     word_splitter = self.test_config.get('word_splitter', None)
-        dataset_reader = load_dataset_reader('AMR', word_splitter=word_splitter, transformer_tokenizer= self.transformer_tokenizer)
+        dataset_reader = load_dataset_reader('AMR', word_splitter=word_splitter, transformer_tokenizer= self.transformer_tokenizer, amrnodes_tot5_tokens= self.amrnodes_tot5_tokens)
         dataset_reader.set_evaluation()
         predictor = Predictor.by_name('STOG')(self, dataset_reader)
         manager = _PredictManager(
@@ -101,7 +105,7 @@ class STOG(Model):
             self.test_config['batch_size'],
             False,
             True,
-            1
+            0 # 1 beam size
         )
         try:
             logger.info('Mimicking test...')
@@ -137,8 +141,8 @@ class STOG(Model):
         )
 
         # [batch, num_tokens]
-        decoder_token_inputs = batch['tgt_tokens']['decoder_tokens'][:, :-1].contiguous()
-        decoder_pos_tags = batch['tgt_pos_tags'][:, :-1]
+        decoder_token_inputs = batch['tgt_ids'][:, :-1] # batch['tgt_tokens']['decoder_tokens']#[:, :-1].contiguous()
+        decoder_pos_tags = batch['tgt_pos_tags']#[:, :-1]
         # [batch, num_tokens, num_chars]
         # TODO: The following change can be done in amr.py.
         # Initially, raw_coref_inputs has value like [0, 0, 0, 1, 0]
@@ -146,7 +150,7 @@ class STOG(Model):
         # '1' indicates that the input token's first precedent is at position '1'.
         # Here, we change it to [0, 1, 2, 1, 4] which means if the input token
         # has no precedent, then it is referred to itself.
-        raw_coref_inputs = batch["tgt_copy_indices"][:, :-1].contiguous()
+        raw_coref_inputs = batch["tgt_copy_indices"].contiguous() #[:, :-1].contiguous()
         coref_happen_mask = raw_coref_inputs.ne(0)
         decoder_coref_inputs = torch.ones_like(raw_coref_inputs) * torch.arange(
             0, raw_coref_inputs.size(1)).type_as(raw_coref_inputs).unsqueeze(0)
@@ -169,9 +173,21 @@ class STOG(Model):
         # [batch, num_tgt_tokens, num_src_tokens + unk]
         copy_targets = batch["src_copy_indices"][:, 1:]
 
+<<<<<<< HEAD
+=======
+        # print("normal tokens.shape: ", batch['tgt_tokens']['decoder_tokens'].shape)
+        # print("normal tokens: ", batch['tgt_tokens']['decoder_tokens'])
+        # print("decoder_token_inputs.shape:", decoder_token_inputs.shape)
+        # print("decoder_token_inputs:", decoder_token_inputs)
+        # print("vocab_targets:", vocab_targets)
+        # print("coref_targets:", coref_targets)
+        # print("copy_targets:",  copy_targets)
+
+
+>>>>>>> tmp
         # [batch, num_src_tokens + unk, src_dynamic_vocab_size]
         # Exclude the last pad.
-        copy_attention_maps = batch['src_copy_map'][:, 1:-1]
+        copy_attention_maps = batch['src_copy_map'][:, 1:-1] #1:-1]
 
         generator_inputs = dict(
             vocab_targets=vocab_targets,
@@ -180,18 +196,37 @@ class STOG(Model):
             copy_targets=copy_targets,
             copy_attention_maps=copy_attention_maps
         )
+       
+        # print("batch['head_indices'].shape: ", batch['head_indices'].shape)
+        # print("batch['head_indices']: ", batch['head_indices'])
+        # print("batch['head_tags'].shape: ", batch['head_tags'].shape)
+        # print("batch['head_tags']: ", batch['head_tags'])
+       
+
 
         # Remove the last two pads so that they have the same size of other inputs?
-        edge_heads = batch['head_indices'][:, :-2]
-        edge_labels = batch['head_tags'][:, :-2]
+        edge_heads = batch['head_indices'][:,:-2]#[:, :-2]
+        edge_labels = batch['head_tags'][:,:-2]#[:, :-2]
         # TODO: The following computation can be done in amr.py.
         # Get the parser mask.
         parser_token_inputs = torch.zeros_like(decoder_token_inputs)
         parser_token_inputs.copy_(decoder_token_inputs)
         parser_token_inputs[
-            parser_token_inputs == self.vocab.get_token_index(END_SYMBOL, 'decoder_token_ids')
+            parser_token_inputs == 1 #self.vocab.get_token_index(END_SYMBOL, 'decoder_token_ids')
         ] = 0
         parser_mask = (parser_token_inputs != 0).float()
+        parser_mask[:,0] = 1
+
+        # print("parser_token_inputs.shape: ", parser_token_inputs.shape)
+        # print("parser_token_inputs: ", parser_token_inputs)
+        # print("parser_mask.shape: ", parser_mask.shape)
+        # print("parser_mask: ", parser_mask)
+        
+        # print("edge_heads.shape: ", edge_heads.shape)
+        # print("edge_heads: ", edge_heads)
+       
+        # print("edge_labels.shape: ", edge_labels.shape)
+        # print("edge_labels: ", edge_labels)
 
         parser_inputs = dict(
             edge_heads=edge_heads,
@@ -239,8 +274,7 @@ class STOG(Model):
                 parser_inputs['edge_heads'],
                 parser_inputs['edge_labels'],
                 parser_inputs['corefs'],
-                parser_inputs['mask'],
-                None
+                parser_inputs['mask']
             )
 
             return dict(
@@ -253,6 +287,14 @@ class STOG(Model):
 
         else:
             self.transformers.eval()
+            source_copy_invalids = batch.get('source_copy_invalid_ids', None)
+
+            # Disable copying the tokens not exists in decoder_token_ids
+            for bi,b in enumerate(batch['src_copy_vocab']):
+                for i,token in b.idx_to_token.items():
+                    decoder_vocab_id = self.vocab.get_token_index(token, 'decoder_token_ids')
+                    if decoder_vocab_id == 1:
+                        source_copy_invalids[bi].add(i)
 
             ## Disable copying the tokens not exists in decoder_token_ids
             source_copy_invalids = batch.get('source_copy_invalid_ids', None)
@@ -278,13 +320,25 @@ class STOG(Model):
 
     def encode_decode(self, src_tokens, tgt_tokens, src_mask, tgt_mask): 
 
+<<<<<<< HEAD
+=======
+        # print("src_tokens.shape: ", src_tokens.shape)
+        # print("src_tokens: ", src_tokens)
+        # print("src_mask.shape: ", src_mask.shape)
+        # print("src_mask: ", src_mask)
+        # print("tgt_tokens.shape: ", tgt_tokens.shape)
+        # print("tgt_tokens: ", tgt_tokens)
+        # print("tgt_mask.shape: ", tgt_mask.shape)
+        # print("tgt_mask: ", tgt_mask)
+
+>>>>>>> tmp
         outputs = self.transformers(input_ids=src_tokens, decoder_input_ids=tgt_tokens, attention_mask=src_mask, decoder_attention_mask=tgt_mask, 
                                     output_attentions=True, output_hidden_states=True, return_dict=True)
         encoder_hiddens = outputs.encoder_last_hidden_state
         decoder_hiddens = outputs.last_hidden_state
 
         coref_attentions = outputs.decoder_attentions[10] 
-        coref_attentions = torch.sum(coref_attentions, dim=1)        # B,Ty,Ty
+        coref_attentions = torch.sum(coref_attentions, dim=1)      # B,Ty,Ty
         
         copy_attentions = outputs.decoder_attentions[11] 
         copy_attentions = torch.sum(copy_attentions, dim=1)        # B,Ty,Tx
@@ -295,7 +349,7 @@ class STOG(Model):
             copy_attentions=copy_attentions                                # torch.Size([B, Ty, Tx])
         )
 
-    def graph_decode(self, memory_bank, edge_heads, edge_labels, corefs, mask, aux_memory_bank):
+    def graph_decode(self, memory_bank, edge_heads, edge_labels, corefs, mask):
         # Exclude the BOS symbol.
         memory_bank = memory_bank[:, 1:]
         corefs = corefs[:, 1:]
@@ -423,29 +477,29 @@ class STOG(Model):
                 beam_buffer[key] = beam_select_2d(beam_buffer[key], beam_indices)
                 beam_buffer[key][:, :, step] = fold(tensor.squeeze(1))
 
-        def get_decoder_input(tokens, pos_tags, corefs):
-            token_embeddings = self.decoder_token_embedding(tokens)
-            pos_tag_embeddings = self.decoder_pos_embedding(pos_tags)
-            coref_embeddings = self.decoder_coref_embedding(corefs)
+        # def get_decoder_input(tokens, pos_tags, corefs):
+        #     token_embeddings = self.decoder_token_embedding(tokens)
+        #     pos_tag_embeddings = self.decoder_pos_embedding(pos_tags)
+        #     coref_embeddings = self.decoder_coref_embedding(corefs)
 
-            if self.use_char_cnn:
-                # TODO: get chars from tokens.
-                # [batch_size, 1, num_chars]
-                chars = character_tensor_from_token_tensor(
-                    tokens,
-                    self.vocab,
-                    self.character_tokenizer
-                )
+        #     if self.use_char_cnn:
+        #         # TODO: get chars from tokens.
+        #         # [batch_size, 1, num_chars]
+        #         chars = character_tensor_from_token_tensor(
+        #             tokens,
+        #             self.vocab,
+        #             self.character_tokenizer
+        #         )
 
-                char_cnn_output = self._get_decoder_char_cnn_output(chars)
-                decoder_inputs = torch.cat(
-                    [token_embeddings, pos_tag_embeddings,
-                     coref_embeddings, char_cnn_output], 2)
-            else:
-                decoder_inputs = torch.cat(
-                    [token_embeddings, pos_tag_embeddings, coref_embeddings], 2)
+        #         char_cnn_output = self._get_decoder_char_cnn_output(chars)
+        #         decoder_inputs = torch.cat(
+        #             [token_embeddings, pos_tag_embeddings,
+        #              coref_embeddings, char_cnn_output], 2)
+        #     else:
+        #         decoder_inputs = torch.cat(
+        #             [token_embeddings, pos_tag_embeddings, coref_embeddings], 2)
 
-            return self.decoder_embedding_dropout(decoder_inputs)
+        #     return self.decoder_embedding_dropout(decoder_inputs)
 
         def repeat_list_item(input_list, n):
             new_list = []
@@ -507,16 +561,44 @@ class STOG(Model):
         for step in range(self.max_decode_length):  # one extra step for EOS marker
             # 1. Decoder inputs
             # decoder_inputs : [ batch_size * beam_size, model_dim]
-            decoder_inputs = get_decoder_input(
-                variables["input_tokens"],
-                variables["pos_tags"],
-                variables["corefs"]
-            )
+            tokens = variables["input_tokens"]
+
+            tgt_ids =[] 
+            tgt_sequences = []
+            for b in range(tokens.size(0)):
+                sequence = []
+                for t in range(tokens.size(1)):
+                    token = self.vocab.get_token_from_index(tokens[b,t].item(), "decoder_token_ids")
+                    # print("token: ", token)
+                    result = re.search("-[0-9]", token)
+                    if result is not None:
+                        s,e = result.span()
+                        token = token[:s]
+                    if token in self.amrnodes_tot5_tokens.keys():
+                        token = self.amrnodes_tot5_tokens[token].strip()
+                    else:
+                        token = "<unk>"
+                    tokenid = self.transformer_tokenizer.convert_tokens_to_ids(token)
+                    if tokenid == 2:
+                        tokenid = self.transformer_tokenizer.convert_tokens_to_ids("▁"+token)
+                    # print("token -> ", token, " id: ", tokenid)
+                    # print("token: ", token, " id: ", tokenid)
+                    sequence.append(tokenid) 
+                tgt_sequences.append(sequence)
+            tgt_ids = torch.reshape(torch.tensor(tgt_sequences), (batch_size* beam_size, step+1)).cuda()
+
+            # print("tgt_ids: ", tgt_ids)
+
+            # get_decoder_input(
+            #     variables["input_tokens"],
+            #     variables["pos_tags"],
+            #     variables["corefs"]
+            # )
 
             # # 2. Decode one stepi.
             # print("\nstep: ", step)
         
-            outputs = self.transformers(input_ids=encoder_inputs.index_select(0, new_order), attention_mask=mask.index_select(0, new_order), decoder_inputs_embeds=decoder_inputs, output_attentions=True, output_hidden_states=True, return_dict=True)
+            outputs = self.transformers(input_ids=encoder_inputs.index_select(0, new_order), attention_mask=mask.index_select(0, new_order), decoder_input_ids=tgt_ids, output_attentions=True, output_hidden_states=True, return_dict=True)
             decoder_hiddens = outputs.last_hidden_state
             
             _copy_attentions = outputs.decoder_attentions[11] 
@@ -557,7 +639,6 @@ class STOG(Model):
 
             # print("new_hypo_scores.shape: ", new_hypo_scores.shape)
             # print("new_hypo_scores: ", new_hypo_scores)
-
 
 
             new_token_indices = torch.fmod(new_hypo_indices, word_lprobs.size(-1))
@@ -668,9 +749,6 @@ class STOG(Model):
                 invalid_indices
             )
 
-      
-
-
             beam_buffer["scores"] = new_hypo_scores.unsqueeze(2)
 
             update_tensor_buff("decoder_memory_bank", step, beam_indices, decoder_hiddens)
@@ -778,7 +856,12 @@ class STOG(Model):
         target_copy_attentions = []
 
         for step_i in range(self.max_decode_length):
+<<<<<<< HEAD
             # print("\nstep_i: ", step_i)
+=======
+            print("\nstep_i: ", step_i)
+            # print("tokens: ", tokens)
+>>>>>>> tmp
 
             ## Convert tgttokens to transformer_token ids
             tgt_ids =[] 
@@ -787,6 +870,10 @@ class STOG(Model):
                 sequence = []
                 for t in range(tokens.size(1)):
                     token = self.vocab.get_token_from_index(tokens[b,t].item(), "decoder_token_ids")
+<<<<<<< HEAD
+=======
+                    # print("token: ", token)
+>>>>>>> tmp
                     result = re.search("-[0-9]", token)
                     if result is not None:
                         s,e = result.span()
@@ -798,18 +885,30 @@ class STOG(Model):
                     tokenid = self.transformer_tokenizer.convert_tokens_to_ids(token)
                     if tokenid == 2:
                         tokenid = self.transformer_tokenizer.convert_tokens_to_ids("▁"+token)
+<<<<<<< HEAD
+=======
+                    # print("token -> ", token, " id: ", tokenid)
+                    # print("token: ", token, " id: ", tokenid)
+>>>>>>> tmp
                     sequence.append(tokenid) 
                 tgt_sequences.append(sequence)
 
             tgt_ids = torch.reshape(torch.tensor(tgt_sequences), (batch_size, step_i+1)).cuda()
+<<<<<<< HEAD
             print("tokens: ", tokens)
             print("tgt_ids: ", tgt_ids)
+=======
+            # print("tgt_ids: ", tgt_ids)
+>>>>>>> tmp
 
             outputs = self.transformers(input_ids=encoder_inputs, attention_mask=mask, decoder_input_ids=tgt_ids, output_attentions=True, output_hidden_states=True, return_dict=True)
             memory_bank = outputs.encoder_last_hidden_state
             decoder_hiddens = outputs.last_hidden_state
             
+<<<<<<< HEAD
             
+=======
+>>>>>>> tmp
             _copy_attentions = outputs.decoder_attentions[11] 
             _copy_attentions = torch.sum(_copy_attentions, dim=1)        # B,Ty,Tx
 
@@ -817,14 +916,17 @@ class STOG(Model):
             _coref_attentions = torch.sum(_coref_attentions, dim=1)      # B,Ty,Ty
 
 
+            # print("_copy_attentions_before: ", _copy_attentions.shape)    
+            # print("_coref_attentions_before: ", _coref_attentions.shape)
+
             # 3. Run pointer/generator.
             if step_i == 0:
                 _coref_attention_maps = coref_attention_maps[:, :step_i + 1]
             else:
-                _coref_attention_maps = coref_attention_maps[:, :step_i]
+                _coref_attention_maps = coref_attention_maps[:, :step_i + 1] #step_i
                 decoder_hiddens = decoder_hiddens[:,-1:,:]
                 _copy_attentions = _copy_attentions[:, -1:,:]
-                _coref_attentions = _coref_attentions[:, -1:, :-1]
+                _coref_attentions = _coref_attentions[:, -1:] #:-1
 
             # print("copy_attention_maps: ", copy_attention_maps.shape)
             # print("coref_attention_maps: ", coref_attention_maps.shape)
@@ -885,8 +987,8 @@ class STOG(Model):
         coref_indexes = torch.cat(coref_indexes[:-1], dim=1)
         decoder_mask = torch.logical_not(torch.cat(decoder_mask[:-1], dim=1))
 
-        print("predictions: ", predictions)
-        print("decoder_mask: ", decoder_mask)
+        # print("predictions: ", predictions)
+        # print("decoder_mask: ", decoder_mask)
         return dict(
             # [batch_size, max_decode_length]
             predictions=predictions,
@@ -1040,6 +1142,7 @@ class STOG(Model):
 
         logger.info('Building the STOG Model...')
 
+<<<<<<< HEAD
         # Source attention
         if params['source_attention']['attention_function'] == 'mlp':
             source_attention = MLPAttention(
@@ -1062,6 +1165,8 @@ class STOG(Model):
         )
 
         
+=======
+>>>>>>> tmp
         switch_input_size = 512 #params['encoder']['hidden_size'] #* 2
         generator = PointerGenerator(
             input_size=512, #params['decoder']['hidden_size'],

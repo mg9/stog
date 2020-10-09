@@ -57,7 +57,7 @@ class STOGPredictor(Predictor):
                 # Lookup the node.
                 if index >= gen_vocab_size:
                     copy_index = index - gen_vocab_size
-                    print("copy_vocab.get_token_from_idx(copy_index)::", copy_vocab.get_token_from_idx(copy_index))
+                    # print("copy_vocab.get_token_from_idx(copy_index)::", copy_vocab.get_token_from_idx(copy_index))
                     nodes.append(copy_vocab.get_token_from_idx(copy_index))
                     copy_indicators.append(1)
                 else:

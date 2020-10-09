@@ -14,11 +14,12 @@ class NodeRestore:
             if instance != new_instance:
                 graph.replace_node_attribute(node, 'instance', instance, new_instance)
             continue
-
+       
     def restore_file(self, file_path):
         for amr in AMRIO.read(file_path):
             self.restore_instance(amr)
             yield amr
+           
 
 
 if __name__ == '__main__':

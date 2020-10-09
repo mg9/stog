@@ -372,6 +372,7 @@ class AMRGraph(penman.Graph):
                 t = penman.Triple(source=node.identifier, relation=attr, target=new)
             triples.append(t)
         if not found:
+            print("replace_node_attribute error! :")
             print("self._triples: ", self._triples)
             print("node.identifier: ", node.identifier)
             print("attr: ", attr)

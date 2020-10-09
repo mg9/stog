@@ -89,7 +89,8 @@ class AbstractMeaningRepresentationDatasetReader(DatasetReader):
         fields: Dict[str, Field] = {}
         max_tgt_length = None if self._evaluation else 60
 
-        list_data = amr.graph.get_list_data(amr, None, END_SYMBOL, self._word_splitter, max_tgt_length, self.transformer_tokenizer, self.amrnodes_tot5_tokens) # START_SYMBOL, 
+
+        list_data = amr.graph.get_list_data(amr, START_SYMBOL, END_SYMBOL, self._word_splitter, max_tgt_length, self.transformer_tokenizer, self.amrnodes_tot5_tokens) # START_SYMBOL, 
 
         fields["src_tokens_transformer_tokenized"] = TextField(
             tokens=[Token(x) for x in list_data["src_tokens_transformer_tokenized"]],
@@ -207,5 +208,4 @@ class AbstractMeaningRepresentationDatasetReader(DatasetReader):
             )
 
         return Instance(fields)
-
 

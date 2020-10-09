@@ -170,7 +170,7 @@ environment:
   seed: 1
   numpy_seed: 1
   torch_seed: 1
-  serialization_dir: &serialization_dir ckpt-amr-2.12
+  serialization_dir: &serialization_dir ckpt-amr-2.14
   file_friendly_logging: False
   gpu: True
   cuda_device: 0
