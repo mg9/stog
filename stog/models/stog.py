@@ -271,14 +271,6 @@ class STOG(Model):
 
         else:
             self.transformers.eval()
-            source_copy_invalids = batch.get('source_copy_invalid_ids', None)
-
-            # Disable copying the tokens not exists in decoder_token_ids
-            for bi,b in enumerate(batch['src_copy_vocab']):
-                for i,token in b.idx_to_token.items():
-                    decoder_vocab_id = self.vocab.get_token_index(token, 'decoder_token_ids')
-                    if decoder_vocab_id == 1:
-                        source_copy_invalids[bi].add(i)
 
             ## Disable copying the tokens not exists in decoder_token_ids
             source_copy_invalids = batch.get('source_copy_invalid_ids', None)
