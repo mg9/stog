@@ -27,8 +27,8 @@ logger = logging.init_logger(__name__)  # pylint: disable=invalid-name
 # save/load this set of weights.
 _DEFAULT_WEIGHTS = "best.th"
 
-
 from transformers import T5Tokenizer
+import json
 
 class Model(torch.nn.Module):
     """
@@ -258,7 +258,10 @@ class Model(torch.nn.Module):
         remove_pretrained_embedding_params(model_params)
         transformer_tokenizer = T5Tokenizer.from_pretrained(config['transformer_tokenizer'])
 
-        model = cls.from_params(vocab=vocab, params=model_params, transformer_tokenizer=transformer_tokenizer)
+        with open('amrnodes_t5_lookup.json') as json_file:
+            amrnodes_tot5_tokens = json.load(json_file)
+
+        model = cls.from_params(vocab=vocab, params=model_params, transformer_tokenizer=transformer_tokenizer, amrnodes_tot5_tokens=amrnodes_tot5_tokens)
         model_state = torch.load(weights_file, map_location=device_mapping(-1))
         if not isinstance(model, torch.nn.DataParallel):
             model_state = {re.sub(r'^module\.', '', k):v for k, v in model_state.items()}

@@ -122,8 +122,12 @@ class Predictor(Registrable):
 
         transformer_tokenizer = T5Tokenizer.from_pretrained(config['transformer_tokenizer'])
 
+
+        with open('amrnodes_t5_lookup.json') as json_file:
+            amrnodes_tot5_tokens = json.load(json_file)
+
         dataset_reader = load_dataset_reader(
-            config["data"]["data_type"], word_splitter=word_splitter, transformer_tokenizer=transformer_tokenizer)
+            config["data"]["data_type"], word_splitter=word_splitter, transformer_tokenizer=transformer_tokenizer, amrnodes_tot5_tokens=amrnodes_tot5_tokens)
         if hasattr(dataset_reader, 'set_evaluation'):
             dataset_reader.set_evaluation()
 
