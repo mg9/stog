@@ -65,11 +65,8 @@ class STOG(Model):
         self.generator = generator
         self.graph_decoder = graph_decoder
 
-<<<<<<< HEAD
-        self.beam_size = 1
-=======
+
         self.beam_size = 0
->>>>>>> tmp
         self.test_config = test_config
 
     def set_beam_size(self, beam_size):
@@ -172,19 +169,6 @@ class STOG(Model):
         coref_attention_maps = batch['tgt_copy_map'][:, 1:]  # exclude BOS
         # [batch, num_tgt_tokens, num_src_tokens + unk]
         copy_targets = batch["src_copy_indices"][:, 1:]
-
-<<<<<<< HEAD
-=======
-        # print("normal tokens.shape: ", batch['tgt_tokens']['decoder_tokens'].shape)
-        # print("normal tokens: ", batch['tgt_tokens']['decoder_tokens'])
-        # print("decoder_token_inputs.shape:", decoder_token_inputs.shape)
-        # print("decoder_token_inputs:", decoder_token_inputs)
-        # print("vocab_targets:", vocab_targets)
-        # print("coref_targets:", coref_targets)
-        # print("copy_targets:",  copy_targets)
-
-
->>>>>>> tmp
         # [batch, num_src_tokens + unk, src_dynamic_vocab_size]
         # Exclude the last pad.
         copy_attention_maps = batch['src_copy_map'][:, 1:-1] #1:-1]
@@ -318,20 +302,8 @@ class STOG(Model):
                 invalid_indexes=invalid_indexes
             )
 
-    def encode_decode(self, src_tokens, tgt_tokens, src_mask, tgt_mask): 
+    def encode_decode(self, src_tokens, tgt_tokens, src_mask, tgt_mask):
 
-<<<<<<< HEAD
-=======
-        # print("src_tokens.shape: ", src_tokens.shape)
-        # print("src_tokens: ", src_tokens)
-        # print("src_mask.shape: ", src_mask.shape)
-        # print("src_mask: ", src_mask)
-        # print("tgt_tokens.shape: ", tgt_tokens.shape)
-        # print("tgt_tokens: ", tgt_tokens)
-        # print("tgt_mask.shape: ", tgt_mask.shape)
-        # print("tgt_mask: ", tgt_mask)
-
->>>>>>> tmp
         outputs = self.transformers(input_ids=src_tokens, decoder_input_ids=tgt_tokens, attention_mask=src_mask, decoder_attention_mask=tgt_mask, 
                                     output_attentions=True, output_hidden_states=True, return_dict=True)
         encoder_hiddens = outputs.encoder_last_hidden_state
@@ -762,7 +734,7 @@ class STOG(Model):
             variables["corefs"] = torch.cat([beam_select_1d(variables["corefs"], beam_indices),_corefs],1)
 
             # print("_input_tokens.shape:", _input_tokens.shape)
-            # # print("_input_tokens", _input_tokens)
+            # print("_input_tokens", _input_tokens)
             # print("variables[input_tokens].shape:", variables["input_tokens"].shape)
             # print("variables[input_tokens]:", variables["input_tokens"])
             # print("beam_buffer[decoder_mask].shape :", beam_buffer["decoder_mask"].shape)
@@ -775,12 +747,10 @@ class STOG(Model):
                     sequence.append(self.vocab.get_token_from_index(variables["input_tokens"][be,t].item(), "decoder_token_ids")) 
                 pred_sequences.append(sequence)
             # print("pred_sequences :", pred_sequences)
-
             # print("beam_buffer[predictions].shape :", beam_buffer["predictions"].shape)
             # print("beam_buffer[predictions] :", beam_buffer["predictions"])
             # print("beam_buffer[scores].shape :", beam_buffer["scores"].shape)
             # print("beam_buffer[scores] :", beam_buffer["scores"])
-
 
         for batch_idx, item in enumerate(bucket):
             if len(item) == 0:
@@ -856,13 +826,8 @@ class STOG(Model):
         target_copy_attentions = []
 
         for step_i in range(self.max_decode_length):
-<<<<<<< HEAD
             # print("\nstep_i: ", step_i)
-=======
-            print("\nstep_i: ", step_i)
-            # print("tokens: ", tokens)
->>>>>>> tmp
-
+            
             ## Convert tgttokens to transformer_token ids
             tgt_ids =[] 
             tgt_sequences = []
@@ -870,10 +835,6 @@ class STOG(Model):
                 sequence = []
                 for t in range(tokens.size(1)):
                     token = self.vocab.get_token_from_index(tokens[b,t].item(), "decoder_token_ids")
-<<<<<<< HEAD
-=======
-                    # print("token: ", token)
->>>>>>> tmp
                     result = re.search("-[0-9]", token)
                     if result is not None:
                         s,e = result.span()
@@ -885,30 +846,14 @@ class STOG(Model):
                     tokenid = self.transformer_tokenizer.convert_tokens_to_ids(token)
                     if tokenid == 2:
                         tokenid = self.transformer_tokenizer.convert_tokens_to_ids("▁"+token)
-<<<<<<< HEAD
-=======
-                    # print("token -> ", token, " id: ", tokenid)
-                    # print("token: ", token, " id: ", tokenid)
->>>>>>> tmp
                     sequence.append(tokenid) 
                 tgt_sequences.append(sequence)
 
             tgt_ids = torch.reshape(torch.tensor(tgt_sequences), (batch_size, step_i+1)).cuda()
-<<<<<<< HEAD
-            print("tokens: ", tokens)
-            print("tgt_ids: ", tgt_ids)
-=======
-            # print("tgt_ids: ", tgt_ids)
->>>>>>> tmp
-
             outputs = self.transformers(input_ids=encoder_inputs, attention_mask=mask, decoder_input_ids=tgt_ids, output_attentions=True, output_hidden_states=True, return_dict=True)
             memory_bank = outputs.encoder_last_hidden_state
             decoder_hiddens = outputs.last_hidden_state
             
-<<<<<<< HEAD
-            
-=======
->>>>>>> tmp
             _copy_attentions = outputs.decoder_attentions[11] 
             _copy_attentions = torch.sum(_copy_attentions, dim=1)        # B,Ty,Tx
 
@@ -961,7 +906,7 @@ class STOG(Model):
             # print("_tokens: ", _tokens)
             # print("_pos_tags: ", pos_tags)
             # print("_corefs: ", _corefs)
-            print("_predictions: ", _predictions)
+            # print("_predictions: ", _predictions)
             # print("tokens: ", tokens)
 
             # 5. Update variables.
@@ -989,6 +934,7 @@ class STOG(Model):
 
         # print("predictions: ", predictions)
         # print("decoder_mask: ", decoder_mask)
+
         return dict(
             # [batch_size, max_decode_length]
             predictions=predictions,
@@ -1142,31 +1088,6 @@ class STOG(Model):
 
         logger.info('Building the STOG Model...')
 
-<<<<<<< HEAD
-        # Source attention
-        if params['source_attention']['attention_function'] == 'mlp':
-            source_attention = MLPAttention(
-                decoder_hidden_size= 512, # params['decoder']['hidden_size'],
-                encoder_hidden_size= 512, # params['encoder']['hidden_size'], #* 2,
-                attention_hidden_size=params['decoder']['hidden_size'],
-                coverage=params['source_attention'].get('coverage', False)
-            )
-        else:
-            source_attention = DotProductAttention(
-                decoder_hidden_size=params['decoder']['hidden_size'],
-                encoder_hidden_size=params['encoder']['hidden_size'],# * 2,
-                share_linear=params['source_attention'].get('share_linear', False)
-            )
-
-        source_attention_layer = GlobalAttention(
-            decoder_hidden_size= 512, #params['decoder']['hidden_size'],
-            encoder_hidden_size= 512, #params['encoder']['hidden_size'], #* 2,
-            attention=source_attention
-        )
-
-        
-=======
->>>>>>> tmp
         switch_input_size = 512 #params['encoder']['hidden_size'] #* 2
         generator = PointerGenerator(
             input_size=512, #params['decoder']['hidden_size'],
