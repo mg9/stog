@@ -1,0 +1,43 @@
+tgt_tokens_transformer_tokenized:  ['establish', 'model', 'innovate', 'industry', '</s>']
+tgt_ids:                            [4797,        21770,    28144,      681,        1]
+
+
+  0%|          | 0/1 [00:00<?, ?it/s]decoder_token_inputs.shape: torch.Size([1, 5])
+decoder_token_inputs: tensor([[ 4797, 21770, 28144,   681,     1]], device='cuda:0')
+
+vocab_targets: tensor([[3, 4, 5, 6, 2]], device='cuda:0')
+coref_targets: tensor([[0, 0, 0, 0, 0]], device='cuda:0')
+copy_targets: tensor([[4, 5, 1, 1, 9]], device='cuda:0')
+
+src_copy_vocab:  {
+    "0": "<pad>",
+    "1": "<unk>",
+    "2": "summarize",
+    "3": ":",
+    "4": "establish",
+    "5": "model",
+    "6": "in",
+    "7": "Industrial",
+    "8": "Innovation",
+    "9": "</s>"
+}
+src_copy_map:  [(0, 1), (1, 2), (2, 3), (3, 4), (4, 5), (5, 6), (6, 7), (7, 8), (8, 9)]
+src_copy_indices:  [0, 4, 5, 1, 1, 9]
+tgt_tokens_transformer_tokenized:  
+[
+'<pad>', 
+'establish', 
+'model', 
+'innovate', 
+'industry', 
+'</s>']
+tgt_copy_indices:  [0, 0, 0, 0, 0, 0]
+
+
+normal tokens.shape:  torch.Size([1, 6])
+normal tokens:  tensor([[0, 3, 4, 5, 6, 2]], device='cuda:0')
+decoder_token_inputs.shape: torch.Size([1, 5])
+decoder_token_inputs: tensor([[    0,  4797, 21770, 28144,   681]], device='cuda:0')
+vocab_targets: tensor([[3, 4, 5, 6, 2]], device='cuda:0')
+coref_targets: tensor([[0, 0, 0, 0, 0]], device='cuda:0')
+copy_targets: tensor([[4, 5, 1, 1, 9]], device='cuda:0')
